@@ -31,6 +31,7 @@ function BitMap:inside(x, y)
 end
 
 function BitMap:_index_shift_mask(x, y)
+    -- TODO: only check bounds in user-facing methods, for performance
     assert(self:inside(x, y))
     local index = y * self.t + math.floor(x / 8)
     local shift = (7-x) % 8
@@ -55,6 +56,7 @@ function BitMap:pset(x, y, v)
 end
 
 function BitMap:hline(x, y, w, v)
+    -- TODO: optimize this using ffi.fill() for large enough w?
     for i = x, x+w-1 do
         self:pset(i, y, v)
     end
