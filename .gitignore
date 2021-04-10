@@ -1,0 +1,9 @@
+test_*
+*.pbm
+*.pgm
+*.ppm
+*.pam
+*.png
+*.gif
+*.frm
+img/
