@@ -100,6 +100,25 @@ function BitMap:line(x0, y0, x1, y1, v)
     end
 end
 
+function BitMap:disk(cx, cy, r, v)
+    local x = r
+    local y = 0
+    local d = 1-x
+    while x >= y do
+        self:hline(cx-x, cy+y, 2*x, v)
+        self:hline(cx-y, cy+x, 2*y, v)
+        self:hline(cx-x, cy-y, 2*x, v)
+        self:hline(cx-y, cy-x, 2*y, v)
+        y = y + 1
+        if d <= 0 then
+            d = d + 2*y + 1
+        else
+            x = x - 1
+            d = d + 2*(y-x) + 1
+        end
+    end
+end
+
 function BitMap:save_pbm(fname)
     local pbm = io.open(fname, "wb")
     pbm:write("P4\n", self.w, " ", self.h, "\n")
