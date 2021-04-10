@@ -5,7 +5,8 @@ ffi.cdef[[
 double hypot(double x, double y);
 double copysign(double x, double y);
 ]]
-local mathx = ffi.C
+local hypot = ffi.C.hypot
+local copysign = ffi.C.copysign
 
 local bnot = bit.bnot
 local bor, band = bit.bor, bit.band
@@ -80,7 +81,7 @@ function BitMap:line(x0, y0, x1, y1, v)
         end
     else
         local dx, dy = x1-x0, y1-y0
-        local sx, sy = mathx.copysign(1, dx), mathx.copysign(1, dy)
+        local sx, sy = copysign(1, dx), copysign(1, dy)
         local de = math.abs(dy / dx)
         local e = 0
         local x, y = x0, y0
@@ -107,3 +108,5 @@ function BitMap:save_pbm(fname)
     end
     pbm:close()
 end
+
+return {new_bitmap=new_bitmap}
