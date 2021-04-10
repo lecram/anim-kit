@@ -101,9 +101,7 @@ function BitMap:line(x0, y0, x1, y1, v)
 end
 
 function BitMap:disk(cx, cy, r, v)
-    local x = r
-    local y = 0
-    local d = 1-x
+    local x, y, d = r, 0, 1-r
     while x >= y do
         self:hline(cx-x, cy+y, 2*x, v)
         self:hline(cx-y, cy+x, 2*y, v)
