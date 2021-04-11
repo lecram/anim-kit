@@ -51,4 +51,33 @@ local function dashed(points, pattern)
     return polylines
 end
 
-return {dashed=dashed}
+-- convert bezier curve {{ax, ay}, {bx, by}, {cx, cy}} to polyline
+local function bezier(curve)
+    local h
+    local dx, dy, ex, ey, fx, fy
+    local a, b, c = unpack(curve)
+    local ax, ay = unpack(a)
+    local bx, by = unpack(b)
+    local cx, cy = unpack(c)
+    local points = {{ax, ay}}
+    local stack = {curve}
+    while #stack > 0 do
+        a, b, c = unpack(table.remove(stack))
+        ax, ay = unpack(a)
+        bx, by = unpack(b)
+        cx, cy = unpack(c)
+        h = math.abs((ax-cx)*(by-ay)-(ax-bx)*(cy-ay))/hypot(cx-ax, cy-ay)
+        if h > 1 then -- split curve
+            dx, dy = (ax+bx)/2, (ay+by)/2
+            fx, fy = (bx+cx)/2, (by+cy)/2
+            ex, ey = (dx+fx)/2, (dy+fy)/2
+            table.insert(stack, {{ex, ey}, {fx, fy}, {cx, cy}})
+            table.insert(stack, {{ax, ay}, {dx, dy}, {ex, ey}})
+        else -- add point to polyline
+            table.insert(points, {cx, cy})
+        end
+    end
+    return points
+end
+
+return {dashed=dashed, bezier=bezier}
