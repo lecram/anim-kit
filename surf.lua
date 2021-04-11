@@ -12,6 +12,11 @@ local bnot = bit.bnot
 local bor, band = bit.bor, bit.band
 local lshift, rshift =  bit.lshift,  bit.rshift
 
+local function round(x)
+    local i, f = math.modf(x + copysign(0.5, x))
+    return i
+end
+
 local BitMap = {}
 BitMap.__index = BitMap
 
@@ -134,13 +139,53 @@ function BitMap:line(x0, y0, x1, y1, v, r)
     end
 end
 
-function BitMap:lines(points, v, r)
+function BitMap:polyline(points, v, r)
     local x0, y0, x1, y1
     x0, y0 = unpack(points[1])
     for i = 2, #points do
         x1, y1 = unpack(points[i])
         self:line(x0, y0, x1, y1, v, r)
         x0, y0 = x1, y1
+    end
+end
+
+function BitMap:polygon(points, v)
+    local scans = {}
+    for i = 0, self.h-1 do
+        scans[i] = {}
+    end
+    local x0, y0, x1, y1
+    local ax, ay, bx, by -- same line as above, but enforce ay < by
+    -- collect crossings
+    x0, y0 = unpack(points[1])
+    for i = 2, #points do
+        x1, y1 = unpack(points[i])
+        if y1 ~= y0 then
+            if y0 < y1 then
+                ax, ay, bx, by = x0, y0, x1, y1
+            else
+                ax, ay, bx, by = x1, y1, x0, y0
+            end
+            local slope = (bx-ax) / (by-ay)
+            ay = round(ay)
+            while ay < by do
+                if ay >= 0 and ay < self.h then
+                    table.insert(scans[ay], ax)
+                end
+                ax = ax + slope
+                ay = ay + 1
+            end
+        end
+        x0, y0 = x1, y1
+    end
+    -- fill scanlines
+    for i = 0, self.h-1 do
+        local scan = scans[i]
+        table.sort(scan)
+        for j = 1, #scan, 2 do
+            ax, bx = round(scan[j]), round(scan[j+1])
+            self:hline(ax, i, bx-ax, v)
+        end
     end
 end
 
