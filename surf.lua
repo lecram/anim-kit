@@ -96,6 +96,8 @@ end
 
 function BitMap:line(x0, y0, x1, y1, v, r)
     r = r or 0
+    x0, y0 = round(x0), round(y0)
+    x1, y1 = round(x1), round(y1)
     if x1 == x0 then
         local x, y, h
         if y1 > y0 then
