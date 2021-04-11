@@ -134,6 +134,16 @@ function BitMap:line(x0, y0, x1, y1, v, r)
     end
 end
 
+function BitMap:lines(points, v, r)
+    local x0, y0, x1, y1
+    x0, y0 = unpack(points[1])
+    for i = 2, #points do
+        x1, y1 = unpack(points[i])
+        self:line(x0, y0, x1, y1, v, r)
+        x0, y0 = x1, y1
+    end
+end
+
 function BitMap:save_pbm(fname)
     local pbm = io.open(fname, "wb")
     pbm:write("P4\n", self.w, " ", self.h, "\n")
