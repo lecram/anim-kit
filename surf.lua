@@ -131,7 +131,7 @@ function Surf:polygon(points, v)
                 ax, ay, bx, by = x1, y1, x0, y0
             end
             local slope = (bx-ax) / (by-ay)
-            ay = round(ay)
+            ay, by = round(ay), round(by)
             while ay < by do
                 if ay >= 0 and ay < self.h then
                     table.insert(scans[ay], ax)
@@ -146,8 +146,8 @@ function Surf:polygon(points, v)
     for i = 0, self.h-1 do
         local scan = scans[i]
         table.sort(scan)
-        for j = 1, #scan, 2 do
-            ax, bx = round(scan[j]), round(scan[j+1])
+        for j = 2, #scan, 2 do
+            ax, bx = round(scan[j-1]), round(scan[j])
             self:hline(ax, i, bx-ax, v)
         end
     end
