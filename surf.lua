@@ -113,6 +113,12 @@ function Surf:polyline(points, v, r)
     end
 end
 
+function Surf:polylines(polys, v, r)
+    for _, lines in ipairs(polys) do
+        self:polyline(lines, v, r)
+    end
+end
+
 function Surf:polygon(points, v)
     local scans = {}
     for i = 0, self.h-1 do
