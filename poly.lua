@@ -125,7 +125,8 @@ local function unfold(control_points)
     return points
 end
 
-local function circle(x, y, r)
+-- bezigon that approximates a circle
+local function bcircle(x, y, r)
     local a = r * (sqrt2-1)
     return {
         {x  , y+r, true},
@@ -141,4 +142,22 @@ local function circle(x, y, r)
     }
 end
 
-return {dashed=dashed, unfold=unfold, circle=circle}
+-- regular polygon that approximates a circle
+local function pcircle(x, y, r)
+    local h = 0.5 -- maximum radius-apothem allowed
+    local n = math.ceil(math.pi / math.acos(1 - h/r)) -- # of sides
+    local a = 2 * math.pi / n -- angle between points
+    local pgon = {}
+    local px, py
+    local pa = 0
+    for i = 1, n do
+        px = x + r * math.cos(pa)
+        py = y + r * math.sin(pa)
+        table.insert(pgon, {px, py})
+        pa = pa + a
+    end
+    table.insert(pgon, pgon[1]) -- repeat first point to close polygon
+    return pgon
+end
+
+return {dashed=dashed, unfold=unfold, bcircle=bcircle, pcircle=pcircle}
