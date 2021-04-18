@@ -142,10 +142,8 @@ local function bcircle(x, y, r)
     }
 end
 
--- regular polygon that approximates a circle
-local function pcircle(x, y, r)
-    local h = 0.5 -- maximum radius-apothem allowed
-    local n = math.ceil(math.pi / math.acos(1 - h/r)) -- # of sides
+-- regular polygon
+local function ngon(x, y, r, n)
     local a = 2 * math.pi / n -- angle between points
     local pgon = {}
     local px, py
@@ -160,4 +158,11 @@ local function pcircle(x, y, r)
     return pgon
 end
 
-return {dashed=dashed, unfold=unfold, bcircle=bcircle, pcircle=pcircle}
+-- regular polygon that approximates a circle
+local function pcircle(x, y, r)
+    local h = 0.5 -- maximum radius-apothem allowed
+    local n = math.ceil(math.pi / math.acos(1 - h/r)) -- # of sides
+    return ngon(x, y, r, n)
+end
+
+return {dashed=dashed, unfold=unfold, bcircle=bcircle, ngon=ngon, pcircle=pcircle}
