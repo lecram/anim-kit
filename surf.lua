@@ -58,48 +58,15 @@ end
 
 function Surf:line(x0, y0, x1, y1, v, r)
     r = r or 0
-    x0, y0 = round(x0), round(y0)
-    x1, y1 = round(x1), round(y1)
-    if x1 == x0 then
-        local x, y, h
-        if y1 > y0 then
-            x, y, h = x0, y0, y1-y0
-        else
-            x, y, h = x0, y1, y0-y1
-        end
-        self:vline(x, y, h, v)
-        for i = 1, r do
-            self:vline(x-i, y, h, v)
-            self:vline(x+i, y, h, v)
-        end
-    elseif y1 == y0 then
-        local x, y, w
-        if x1 > x0 then
-            x, y, w = x0, y0, x1-x0
-        else
-            x, y, w = x1, y0, x0-x1
-        end
-        self:hline(x, y, w, v)
-        for i = 1, r do
-            self:hline(x, y-i, w, v)
-            self:hline(x, y+i, w, v)
-        end
-    else
-        local dx, dy = x1-x0, y1-y0
-        local sx, sy = copysign(1, dx), copysign(1, dy)
-        local de = math.abs(dy / dx)
-        local e = 0
-        local x, y = x0, y0
-        while x ~= x1 do
-            self:disk(x, y, r, v)
-            e = e + de
-            while e >= 0.5 do
-                self:disk(x, y, r, v)
-                y = y + sy
-                e = e - 1
-            end
-            x = x + sx
-        end
+    local dx, dy = x1-x0, y1-y0
+    local n = math.max(math.abs(dx), math.abs(dy))
+    local sx, sy = dx/n, dy/n
+    local x, y = x0, y0
+    self:disk(math.floor(x), math.floor(y), r, v)
+    for i = 1, n do
+        x = x + sx
+        y = y + sy
+        self:disk(math.floor(x), math.floor(y), r, v)
     end
 end
 
