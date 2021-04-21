@@ -165,4 +165,28 @@ local function pcircle(x, y, r)
     return ngon(x, y, r, n)
 end
 
-return {dashed=dashed, unfold=unfold, bcircle=bcircle, ngon=ngon, pcircle=pcircle}
+local function arrow_head(x0, y0, x1, y1, w, h)
+    local dx, dy = x1-x0, y1-y0
+    local a = math.atan2(dy, dx)    -- line angle
+    local b = math.atan2(-dx, dy)   -- perpendicular angle
+    local mx, my = math.cos(a), math.sin(a)
+    local nx, ny = math.cos(b), math.sin(b)
+    local bx, by = x1 - mx * h, y1 - my * h     -- back of arrow
+    local lx, ly = bx - nx * w/2, by - ny * w/2 -- left point
+    local rx, ry = bx + nx * w/2, by + ny * w/2 -- right point
+    bx, by = bx + mx * h/2, by + my * h/2       -- off-curve point
+    local control_points = {
+      {lx, ly, true},
+      {x1, y1, true},
+      {rx, ry, true},
+      {bx, by, false},
+      {lx, ly, true},
+    }
+    return unfold(control_points)
+    --~ return control_points
+end
+
+return {
+  dashed=dashed, unfold=unfold, bcircle=bcircle, ngon=ngon,
+  pcircle=pcircle, arrow_head=arrow_head
+}
