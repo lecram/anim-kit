@@ -50,8 +50,31 @@ local function test_combinations()
     print(i.." tests passed")
 end
 
-local function antialias(bytemap, colors)
+local function mixed_rgb(colors, n)
+    local c1 = colors[n[1]+1]
+    local c2 = colors[n[2]+1]
+    local c3 = colors[n[3]+1]
+    local c4 = colors[n[4]+1]
+    -- compute the average RGB of the four colors
+    local r = rshift(c1[1] + c2[1] + c3[1] + c4[1], 2)
+    local g = rshift(c1[2] + c2[2] + c3[2] + c4[2], 2)
+    local b = rshift(c1[3] + c2[3] + c3[3] + c4[3], 2)
+    return {r, g, b}
+end
+
+local function get_mixed_colors(colors)
     local base = #colors
+    assert(base >= 2 and base <= 7)
+    local n = {0, 0, 0, 0}
+    local palette = {mixed_rgb(colors, n)}
+    for i = 2, C(base+3, 4) do
+        next_mix(n, base)
+        table.insert(palette, mixed_rgb(colors, n))
+    end
+    return palette
+end
+
+local function antialias(bytemap, base)
     assert(base >= 2 and base <= 7)
     -- output has half dimensions
     -- discard last row/column for odd dimensions
@@ -74,25 +97,7 @@ local function antialias(bytemap, colors)
             outmap:pset(x, y, v)
         end
     end
-    -- now just build the palette of mixed colors
-    local function mixed_rgb(n)
-        local c1 = colors[n[1]+1]
-        local c2 = colors[n[2]+1]
-        local c3 = colors[n[3]+1]
-        local c4 = colors[n[4]+1]
-        -- compute the average RGB of the four colors
-        local r = rshift(c1[1] + c2[1] + c3[1] + c4[1], 2)
-        local g = rshift(c1[2] + c2[2] + c3[2] + c4[2], 2)
-        local b = rshift(c1[3] + c2[3] + c3[3] + c4[3], 2)
-        return r, g, b
-    end
-    n = {0, 0, 0, 0}
-    local palette = {{mixed_rgb(n)}}
-    for i = 2, C(base+3, 4) do
-        next_mix(n, base)
-        table.insert(palette, {mixed_rgb(n)})
-    end
-    return outmap, palette
+    return outmap
 end
 
-return {antialias=antialias}
+return {get_mixed_colors=get_mixed_colors, antialias=antialias}
