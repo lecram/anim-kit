@@ -19,19 +19,33 @@ local function write_nums(f, ...)
     end
 end
 
+local function get_depth(n)
+    local m, e = math.frexp(n-1)
+    return math.max(e, 1)
+end
+
 local GIFout = {}
 GIFout.__index = GIFout
 
-local function new_gifout(f, w, h, depth, gct)
+local function new_gifout(f, w, h, colors)
     if type(f) == "string" then f = io.open(f, "wb") end
-    local self = setmetatable({f=f, w=w, h=h, d=depth, gct=gct}, GIFout)
+    local depth = get_depth(#colors)
+    local self = setmetatable({f=f, w=w, h=h, d=depth, gct=colors}, GIFout)
     -- TODO: use ByteMap if depth > 1
     assert(depth == 1)
     self.back = surf.new_bitmap(w, h)
     f:write("GIF89a")
     write_nums(f, w, h)
     f:write(string.char(0xF0 + depth - 1, 0, 0)) -- FDSZ, BGINDEX, ASPECT
-    f:write(ffi.string(gct, 3 * 2 ^ depth))
+    local i = 1
+    while i <= #colors do
+        f:write(string.char(unpack(colors[i])))
+        i = i + 1
+    end
+    while i <= 2^depth do             -- GCT size must be a power of two
+        f:write(string.char(0, 0, 0)) -- fill unused colors as black
+        i = i + 1
+    end
     -- TODO: write Netscape Application Extension (loop) here
     self.n = 0 -- # of frames added
     return self
