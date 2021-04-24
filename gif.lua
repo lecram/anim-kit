@@ -48,9 +48,18 @@ local function new_gifout(f, w, h, colors)
         f:write(string.char(0, 0, 0)) -- fill unused colors as black
         i = i + 1
     end
-    -- TODO: write Netscape Application Extension (loop) here
     self.n = 0 -- # of frames added
     return self
+end
+
+function GIFout:set_loop(n)
+    n = n or 0
+    self.f:write("!")
+    self.f:write(string.char(0xFF, 0x0B))
+    self.f:write("NETSCAPE2.0")
+    self.f:write(string.char(0x03, 0x01))
+    write_num(self.f, n)
+    self.f:write(string.char(0))
 end
 
 function GIFout:set_delay(d)
