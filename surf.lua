@@ -126,6 +126,14 @@ function Surf:polygon(points, v)
     end
 end
 
+function Surf:blit(x, y, surf, sx, sy, w, h)
+    for j = 0, h-1 do
+        for i = 0, w-1 do
+            self:pset(x+i, y+j, surf:pget(sx+i, sy+j))
+        end
+    end
+end
+
 local BitMap = {}
 
 function BitMap:fill(v)

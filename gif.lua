@@ -22,13 +22,12 @@ end
 local GIFout = {}
 GIFout.__index = GIFout
 
-local function new_gifout(f, w, h, depth, gct, frame, back)
+local function new_gifout(f, w, h, depth, gct)
     if type(f) == "string" then f = io.open(f, "wb") end
     local self = setmetatable({f=f, w=w, h=h, d=depth, gct=gct}, GIFout)
-    -- TODO: use ByteMap (NYI) if depth > 1
+    -- TODO: use ByteMap if depth > 1
     assert(depth == 1)
-    self.frame = frame or surf.new_bitmap(w, h)
-    self.back = back or surf.new_bitmap(w, h)
+    self.back = surf.new_bitmap(w, h)
     f:write("GIF89a")
     write_nums(f, w, h)
     f:write(string.char(0xF0 + depth - 1, 0, 0)) -- FDSZ, BGINDEX, ASPECT
@@ -45,12 +44,12 @@ function GIFout:set_delay(d)
     self.f:write(string.char(0, 0))
 end
 
-function GIFout:get_bbox()
+function GIFout:get_bbox(frame)
     local w, h = self.w, self.h
     if self.n == 0 then return 0, 0, w, h end
     local xmin, ymin = w, h
     local xmax, ymax = 0, 0
-    local frame, back = self.frame, self.back
+    local back = self.back
     for y = 0, h-1 do
         for x = 0, w-1 do
             if frame:pget(x, y) ~= back:pget(x, y) then
@@ -65,19 +64,19 @@ function GIFout:get_bbox()
     return xmin, ymin, xmax-xmin+1, ymax-ymin+1
 end
 
-function GIFout:put_image(x, y, w, h)
+function GIFout:put_image(frame, x, y, w, h)
     self.f:write(",")
     write_nums(self.f, x, y, w, h)
     self.f:write(string.char(0))
-    lzw.encode(self.f, self.d, self.frame, x, y, w, h) -- IP (Appendix F)
+    lzw.encode(self.f, self.d, frame, x, y, w, h) -- IP (Appendix F)
 end
 
-function GIFout:add_frame(delay)
+function GIFout:add_frame(frame, delay)
     if delay then self:set_delay(delay) end
-    local x, y, w, h = self:get_bbox()
-    self:put_image(x, y, w, h)
+    local x, y, w, h = self:get_bbox(frame)
+    self:put_image(frame, x, y, w, h)
     self.n = self.n + 1
-    self.frame, self.back = self.back, self.frame
+    self.back:blit(x, y, frame, x, y, w, h)
 end
 
 function GIFout:close()
