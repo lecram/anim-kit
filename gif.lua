@@ -31,9 +31,11 @@ local function new_gifout(f, w, h, colors)
     if type(f) == "string" then f = io.open(f, "wb") end
     local depth = get_depth(#colors)
     local self = setmetatable({f=f, w=w, h=h, d=depth, gct=colors}, GIFout)
-    -- TODO: use ByteMap if depth > 1
-    assert(depth == 1)
-    self.back = surf.new_bitmap(w, h)
+    if depth == 1 then
+        self.back = surf.new_bitmap(w, h)
+    else
+        self.back = surf.new_bytemap(w, h)
+    end
     f:write("GIF89a")
     write_nums(f, w, h)
     f:write(string.char(0xF0 + depth - 1, 0, 0)) -- FDSZ, BGINDEX, ASPECT
