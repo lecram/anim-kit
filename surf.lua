@@ -136,11 +136,11 @@ function Surf:fill_scans(v)
         for j, cross in ipairs(scan) do
             x, sign = unpack(cross)
             if wind == 0 then
-                ax = round(x)
+                ax = math.floor(x)
             end
             wind = wind + sign
             if wind == 0 then
-                bx = round(x)
+                bx = math.ceil(x)
                 self:hline(ax, i, bx-ax, v)
             end
         end
