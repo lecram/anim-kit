@@ -337,25 +337,6 @@ function Face:char_index(code)
     end
 end
 
--- helper for Face:glyph()
-function Face:pack_outline(points, end_points)
-    local outline = {}
-    local h = self.cap_height
-    local p, q
-    local j = 1
-    for i = 1, #end_points do
-        local contour = {}
-        while j <= end_points[i] do
-            p = points[j]
-            q = {p.x, h-p.y, p.on_curve}
-            table.insert(contour, q)
-            j = j + 1
-        end
-        table.insert(outline, contour)
-    end
-    return outline
-end
-
 function Face:glyph(id)
     local suboffset
     if self.index_to_loc_fmt == 0 then      -- short offsets
@@ -522,7 +503,25 @@ function Face:glyph(id)
         end
         -- TODO: read instructions for composite character
     end
-    return self:pack_outline(points, end_points)
+    return points, end_points
+end
+
+function Face:pack_outline(points, end_points)
+    local outline = {}
+    local h = self.cap_height
+    local p, q
+    local j = 1
+    for i = 1, #end_points do
+        local contour = {}
+        while j <= end_points[i] do
+            p = points[j]
+            q = {p.x, h-p.y, p.on_curve}
+            table.insert(contour, q)
+            j = j + 1
+        end
+        table.insert(outline, contour)
+    end
+    return outline
 end
 
 function Face:string(s, pt, x, y, anchor, a)
@@ -539,7 +538,7 @@ function Face:string(s, pt, x, y, anchor, a)
         if i > 1 and self.num_kernings > 0 then
             cur_x = cur_x + self:get_kerning(li, ri)
         end
-        outline = self:glyph(ri)
+        outline = self:pack_outline(self:glyph(ri))
         for j, contour in ipairs(outline) do
             for k, point in ipairs(contour) do
                 point[1] = point[1] + cur_x
