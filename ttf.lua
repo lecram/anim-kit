@@ -221,14 +221,28 @@ function Face:subcmap()
     self.segs, self.gia = segs, gia
 end
 
+function Face:os2()
+    self:goto("OS/2")
+    local version = self:uint16()
+    assert(version >= 2, ("invalid OS/2 version: %u"):format(version))
+    self.avg_char_width = self:int16()
+    self.weight_class = self:uint16()
+    self.width_class = self:uint16()
+    self.fp:seek("cur", 78)
+    self.x_height = self:int16()
+    self.cap_height = self:int16()
+    self.default_char = self:uint16()
+    self.break_char = self:uint16()
+end
+
 function Face:hhea()
     self:goto("hhea")
     local versionH = self:uint16()
     local versionL = self:uint16()
     assert(versionH == 1 and versionL == 0,
         ("invalid hhea version: %d.%d"):format(versionH, versionL))
-    local ascent   = self:int16()
-    local descent  = self:int16()
+    self.ascent  = self:int16()
+    self.descent = self:int16()
     local line_gap = self:int16()
     local advance_width_max = self:uint16()
     local min_left_side_bearing  = self:int16()
@@ -329,13 +343,15 @@ end
 -- helper for Face:glyph()
 function Face:pack_outline(points, end_points)
     local outline = {}
-    local j = 1
+    local s = self.scale
+    local h = self.ascent
     local p, q
+    local j = 1
     for i = 1, #end_points do
         local contour = {}
         while j <= end_points[i] do
             p = points[j]
-            q = {p.x*self.scale, p.y*self.scale, p.on_curve}
+            q = {p.x*s, (h-p.y)*s, p.on_curve}
             table.insert(contour, q)
             j = j + 1
         end
@@ -532,6 +548,11 @@ local function load_face(f)
     else
         self.num_kernings = 0
         log("no kerning table (kern)")
+    end
+    if self.dir["OS/2"] then
+        self:os2()
+    else
+        log("no x-height and Cap-Height (OS/2)")
     end
     return self
 end
