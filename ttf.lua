@@ -1,5 +1,7 @@
 local bit = require "bit"
 
+local aff = require "aff"
+
 local bnot = bit.bnot
 local bor, band = bit.bor, bit.band
 local lshift, rshift =  bit.lshift,  bit.rshift
@@ -335,27 +337,20 @@ function Face:char_index(code)
     end
 end
 
--- used in Face:glyph(); resolution in DPI
-function Face:set_size(resolution, point_size)
-    self.scale = point_size * resolution / (72 * self.units_per_em)
-end
-
 -- helper for Face:glyph()
 function Face:pack_outline(points, end_points)
     local outline = {}
-    local s = self.scale
-    local h = self.ascent
+    local h = self.cap_height
     local p, q
     local j = 1
     for i = 1, #end_points do
         local contour = {}
         while j <= end_points[i] do
             p = points[j]
-            q = {p.x*s, (h-p.y)*s, p.on_curve}
+            q = {p.x, h-p.y, p.on_curve}
             table.insert(contour, q)
             j = j + 1
         end
-        table.insert(contour, contour[1]) -- close contour
         table.insert(outline, contour)
     end
     return outline
@@ -530,6 +525,62 @@ function Face:glyph(id)
     return self:pack_outline(points, end_points)
 end
 
+function Face:string(s, pt, x, y, anchor, a)
+    anchor = anchor or "tl"
+    a = a or 0
+    local codes = utf8to32(s)
+    local cur_x = 0
+    local contours = {}
+    local outline
+    local li, ri
+    local advance, bearing
+    for i, code in ipairs(codes) do
+        ri = self:char_index(code)
+        if i > 1 and self.num_kernings > 0 then
+            cur_x = cur_x + self:get_kerning(li, ri)
+        end
+        outline = self:glyph(ri)
+        for j, contour in ipairs(outline) do
+            for k, point in ipairs(contour) do
+                point[1] = point[1] + cur_x
+            end
+            table.insert(contours, contour)
+        end
+        advance, bearing = self:hmetrics(ri)
+        cur_x = cur_x + advance
+        li = ri
+    end
+    local ax, ay -- anchor position
+    local av, ah = anchor:sub(1, 1), anchor:sub(2, 2)
+    if av == "t" then
+        ay = 0
+    elseif av == "m" then
+        ay = self.cap_height / 2
+    elseif av == "b" then
+        ay = self.cap_height
+    end
+    if ah == "l" then
+        ax = 0
+    elseif ah == "c" then
+        ax = cur_x / 2
+    elseif ah == "r" then
+        ax = cur_x
+    end
+    if ax == nil or ay == nil then
+        error("invalid anchor: "..anchor)
+    end
+    local scl = pt * self.resolution / (72 * self.units_per_em)
+    local t = aff.new_affine()
+    t:add_translate(-ax, -ay)
+    t:add_scale(scl)
+    t:add_rotate(a)
+    t:add_translate(x, y)
+    for i, contour in ipairs(contours) do
+        t:apply(contour)
+    end
+    return contours
+end
+
 local function load_face(f)
     if type(f) == "string" then f = io.open(f, "rb") end
     local self = setmetatable({fp=f}, Face)
@@ -554,10 +605,8 @@ local function load_face(f)
     else
         log("no x-height and Cap-Height (OS/2)")
     end
+    self.resolution = 300 -- dpi
     return self
 end
 
-return {
-    utf8to32=utf8to32,
-    load_face=load_face
-}
+return {load_face=load_face}
