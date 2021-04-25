@@ -1,6 +1,7 @@
 local bit = require "bit"
 
 local aff = require "aff"
+local poly = require "poly"
 
 local bnot = bit.bnot
 local bor, band = bit.bor, bit.band
@@ -574,10 +575,17 @@ function Face:string(s, pt, x, y, anchor, a)
     t:add_scale(scl)
     t:add_rotate(a)
     t:add_translate(x, y)
+    local polygons = {}
+    local polygon
     for i, contour in ipairs(contours) do
-        t:apply(contour)
+        if #contour > 2 then
+            t:apply(contour)
+            polygon = poly.unfold(contour)
+            table.insert(polygon, polygon[1]) -- close
+            table.insert(polygons, polygon)
+        end
     end
-    return contours
+    return polygons
 end
 
 local function load_face(f)
