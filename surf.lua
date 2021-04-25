@@ -86,28 +86,36 @@ function Surf:polylines(polys, v, r)
     end
 end
 
-function Surf:polygon(points, v)
-    local scans = {}
-    for i = 0, self.h-1 do
-        scans[i] = {}
+local function cross_comp(a, b)
+    return a[1] < b[1]
+end
+
+function Surf:scan(points)
+    if not self.scans then
+        self.scans = {}
+        for i = 0, self.h-1 do
+            self.scans[i] = {}
+        end
     end
     local x0, y0, x1, y1
     local ax, ay, bx, by -- same line as above, but enforce ay < by
-    -- collect crossings
+    local sign
     x0, y0 = unpack(points[1])
     for i = 2, #points do
         x1, y1 = unpack(points[i])
         if y1 ~= y0 then
             if y0 < y1 then
                 ax, ay, bx, by = x0, y0, x1, y1
+                sign =  1
             else
                 ax, ay, bx, by = x1, y1, x0, y0
+                sign = -1
             end
             local slope = (bx-ax) / (by-ay)
             ay, by = round(ay), round(by)
             while ay < by do
                 if ay >= 0 and ay < self.h then
-                    table.insert(scans[ay], ax)
+                    table.insert(self.scans[ay], {ax, sign})
                 end
                 ax = ax + slope
                 ay = ay + 1
@@ -115,15 +123,41 @@ function Surf:polygon(points, v)
         end
         x0, y0 = x1, y1
     end
-    -- fill scanlines
+end
+
+function Surf:fill_scans(v)
+    local scan, wind
+    local x, sign
+    local ax, bx
     for i = 0, self.h-1 do
-        local scan = scans[i]
-        table.sort(scan)
-        for j = 2, #scan, 2 do
-            ax, bx = round(scan[j-1]), round(scan[j])
-            self:hline(ax, i, bx-ax, v)
+        scan = self.scans[i]
+        table.sort(scan, cross_comp)
+        wind = 0
+        for j, cross in ipairs(scan) do
+            x, sign = unpack(cross)
+            if wind == 0 then
+                ax = round(x)
+            end
+            wind = wind + sign
+            if wind == 0 then
+                bx = round(x)
+                self:hline(ax, i, bx-ax, v)
+            end
         end
     end
+    self.scans = nil
+end
+
+function Surf:polygon(points, v)
+    self:scan(points)
+    self:fill_scans(v)
+end
+
+function Surf:polygons(polygons, v)
+    for _, points in ipairs(polygons) do
+        self:scan(points)
+    end
+    self:fill_scans(v)
 end
 
 function Surf:blit(x, y, surf, sx, sy, w, h)
