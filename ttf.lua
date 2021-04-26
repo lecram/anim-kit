@@ -345,7 +345,7 @@ function Face:glyph(id)
         suboffset = self:uint16() * 2
     else                                    -- long offsets
         self:goto("loca", 4*id)
-        suboffset = self:uint16()
+        suboffset = self:uint32()
     end
     self:goto("glyf", suboffset)
     local num_contours = self:int16()
