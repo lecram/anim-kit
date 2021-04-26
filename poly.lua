@@ -5,6 +5,7 @@ double hypot(double x, double y);
 ]]
 local hypot = ffi.C.hypot
 
+local pi = math.pi
 local sqrt2 = math.sqrt(2)
 
 local function dashed(points, pattern)
@@ -145,8 +146,8 @@ end
 -- regular polygon
 local function ngon(x, y, r, n, mina, maxa)
     mina = mina or 0
-    maxa = maxa or 2 * math.pi
-    local a = 2 * math.pi / n -- angle between points
+    maxa = maxa or 2 * pi
+    local a = 2 * pi / n -- angle between points
     local pgon = {}
     local px, py
     local pa = mina
@@ -165,13 +166,13 @@ end
 -- approximate an arc between angles mina and maxa
 local function parc(x, y, r, mina, maxa)
     local h = 0.5 -- maximum radius-apothem allowed
-    local n = math.ceil(math.pi / math.acos(1 - h/r)) -- # of sides
+    local n = math.ceil(pi / math.acos(1 - h/r)) -- # of sides
     return ngon(x, y, r, n, mina, maxa)
 end
 
 -- regular polygon that approximates a circle
 local function pcircle(x, y, r)
-    return parc(x, y, r, 0, 2 * math.pi)
+    return parc(x, y, r, 0, 2 * pi)
 end
 
 local function arrow_head(x0, y0, x1, y1, w, h)
