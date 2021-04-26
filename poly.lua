@@ -143,26 +143,35 @@ local function bcircle(x, y, r)
 end
 
 -- regular polygon
-local function ngon(x, y, r, n)
+local function ngon(x, y, r, n, mina, maxa)
+    mina = mina or 0
+    maxa = maxa or 2 * math.pi
     local a = 2 * math.pi / n -- angle between points
     local pgon = {}
     local px, py
-    local pa = 0
-    for i = 1, n do
+    local pa = mina
+    while pa < maxa do
         px = x + r * math.cos(pa)
         py = y + r * math.sin(pa)
         table.insert(pgon, {px, py})
         pa = pa + a
     end
-    table.insert(pgon, pgon[1]) -- repeat first point to close polygon
+    px = x + r * math.cos(maxa)
+    py = y + r * math.sin(maxa)
+    table.insert(pgon, {px, py})
     return pgon
+end
+
+-- approximate an arc between angles mina and maxa
+local function parc(x, y, r, mina, maxa)
+    local h = 0.5 -- maximum radius-apothem allowed
+    local n = math.ceil(math.pi / math.acos(1 - h/r)) -- # of sides
+    return ngon(x, y, r, n, mina, maxa)
 end
 
 -- regular polygon that approximates a circle
 local function pcircle(x, y, r)
-    local h = 0.5 -- maximum radius-apothem allowed
-    local n = math.ceil(math.pi / math.acos(1 - h/r)) -- # of sides
-    return ngon(x, y, r, n)
+    return parc(x, y, r, 0, 2 * math.pi)
 end
 
 local function arrow_head(x0, y0, x1, y1, w, h)
@@ -188,5 +197,5 @@ end
 
 return {
   dashed=dashed, unfold=unfold, bcircle=bcircle, ngon=ngon,
-  pcircle=pcircle, arrow_head=arrow_head
+  parc=parc, pcircle=pcircle, arrow_head=arrow_head
 }
