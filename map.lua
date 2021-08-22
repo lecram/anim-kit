@@ -245,7 +245,7 @@ end
 
 local function new_frame(fname)
     local self = setmetatable({}, Frame)
-    local m, p, b = load(fname)
+    local m, p, b = load_frame(fname)
     self.bb = b
     self.prj = proj.Proj(p.name, {p.lon, p.lat}, m.r)
     return self
