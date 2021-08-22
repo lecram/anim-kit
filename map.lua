@@ -94,11 +94,11 @@ AzimuthalEqualArea.__index = AzimuthalEqualArea
 
 function AzimuthalEqualArea:map(lon, lat)
     lon, lat = rad(lon), rad(lat)
-    lon = lon - self.lon0
+    lon = lon - self.lon
     local k, x, y
-    k = sqrt(2 / (1 + sin(self.lat0) * sin(lat) + cos(self.lat0) * cos(lat) * cos(lon)))
+    k = sqrt(2 / (1 + sin(self.lat) * sin(lat) + cos(self.lat) * cos(lat) * cos(lon)))
     x = self.r * k * cos(lat) * sin(lon)
-    y = self.r * k * (cos(self.lat0) * sin(lat) - sin(self.lat0) * cos(lat) * cos(lon))
+    y = self.r * k * (cos(self.lat) * sin(lat) - sin(self.lat) * cos(lat) * cos(lon))
     return x, y
 end
 
@@ -107,18 +107,18 @@ function AzimuthalEqualArea:inv(x, y)
     local c = 2 * asin(p / (2 * self.r))
     local lon, lat
     -- FIXME: In the formulas below, should it be atan or atan2?
-    if self.lat0 == pi / 2 then
+    if self.lat == pi / 2 then
         -- North Polar Aspect.
-        lon = self.lon0 + atan(x/(-y))
-    elseif self.lat0 == -pi / 2 then
+        lon = self.lon + atan(x/(-y))
+    elseif self.lat == -pi / 2 then
         -- South Polar Aspect.
-        lon = self.lon0 + atan(x/y)
+        lon = self.lon + atan(x/y)
     else
         -- Any other Oblique Aspect.
-        local den = p * cos(self.lat0) * cos(c) - y * sin(self.lat0) * sin(c)
-        lon = self.lon0 + atan(x * sin(c) / den)
+        local den = p * cos(self.lat) * cos(c) - y * sin(self.lat) * sin(c)
+        lon = self.lon + atan(x * sin(c) / den)
     end
-    lat = asin(cos(c) * sin(self.lat0) + y * sin(c) * cos(self.lat0) / p)
+    lat = asin(cos(c) * sin(self.lat) + y * sin(c) * cos(self.lat) / p)
     lon, lat = deg(lon), deg(lat)
     return lon, lat
 end
@@ -136,8 +136,8 @@ local projs = {
 local function Proj(name, origin, radius)
     local proj = {}
     proj.name = name
-    proj.lon0, proj.lat0 = unpack(origin or {0, 0})
-    proj.lon0, proj.lat0 = rad(proj.lon0), rad(proj.lat0)
+    proj.lon, proj.lat = unpack(origin or {0, 0})
+    proj.lon, proj.lat = rad(proj.lon), rad(proj.lat)
     proj.r = radius or 6378137
     return setmetatable(proj, projs[name])
 end
@@ -163,28 +163,66 @@ but without scale, i.e. with meters as unit.
 
 local sep = ":"
 
-local function save_frame(fname, model, projection, bounding)
+local Frame = {}
+Frame.__index = Frame
+
+function Frame:map(lon, lat)
+    local x, y = self.proj:map(lon, lat)
+    x = (x - self.bbox.x0) * self.s
+    y = self.h - (y - self.bbox.y0) * self.s
+    return x, y
+end
+
+function Frame:set_height(h)
+    local mw = self.bbox.x1 - self.bbox.x0
+    local mh = self.bbox.y1 - self.bbox.y0
+    self.h = h
+    self.s = h / mh
+    self.w = math.floor(mw * self.s + 0.5)
+end
+
+function Frame:mapped(points)
+    return coroutine.wrap(function()
+        for p in points do
+            local lat, lon = unpack(p)
+            local x, y = self:map(lat, lon)
+            coroutine.yield({x, y})
+        end
+    end)
+end
+
+function Frame:save(fname)
     local frm = io.open(fname, "w")
-    frm:write("type", sep, model.type, "\n")
-    if model.type == "ellipsoid" then
-        frm:write("a", sep, model.a, "\n")
-        frm:write("b", sep, model.b, "\n")
-        frm:write("e", sep, model.e, "\n")
-        frm:write("f", sep, model.f, "\n")
-    elseif model.type == "sphere" then
-        frm:write("r", sep, model.r, "\n")
+    frm:write("type", sep, self.model.type, "\n")
+    if self.model.type == "ellipsoid" then
+        frm:write("a", sep, self.model.a, "\n")
+        frm:write("b", sep, self.model.b, "\n")
+        frm:write("e", sep, self.model.e, "\n")
+        frm:write("f", sep, self.model.f, "\n")
+    elseif self.model.type == "sphere" then
+        frm:write("r", sep, self.model.r, "\n")
     end
-    frm:write("proj", sep, projection.name, "\n")
-    frm:write("lon", sep, deg(projection.lon0), "\n")
-    frm:write("lat", sep, deg(projection.lat0), "\n")
-    frm:write("x0", sep, bounding.x0, "\n")
-    frm:write("y0", sep, bounding.y0, "\n")
-    frm:write("x1", sep, bounding.x1, "\n")
-    frm:write("y1", sep, bounding.y1, "\n")
+    frm:write("proj", sep, self.proj.name, "\n")
+    frm:write("lon", sep, deg(self.proj.lon), "\n")
+    frm:write("lat", sep, deg(self.proj.lat), "\n")
+    frm:write("x0", sep, self.bbox.x0, "\n")
+    frm:write("y0", sep, self.bbox.y0, "\n")
+    frm:write("x1", sep, self.bbox.x1, "\n")
+    frm:write("y1", sep, self.bbox.y1, "\n")
     frm:close()
 end
 
+local function new_frame(model, proj, bbox)
+    local self = setmetatable({}, Frame)
+    self.proj = proj
+    self.model = model
+    self.bbox = bbox
+    self.w, self.h, self.s = bbox.x1-bbox.x0, bbox.y1-bbox.y0, 1
+    return self
+end
+
 local function load_frame(fname)
+    local self = setmetatable({}, Frame)
     local frm = io.open(fname, "r")
     local function get(field)
         local line = frm:read()
@@ -202,56 +240,20 @@ local function load_frame(fname)
     elseif model.type == "sphere" then
         model.r = tonumber(get "r")
     end
-    local projection = {}
-    projection.name = get "proj"
-    projection.lon = tonumber(get "lon")
-    projection.lat = tonumber(get "lat")
-    local bounding = {}
-    bounding.x0 = tonumber(get "x0")
-    bounding.y0 = tonumber(get "y0")
-    bounding.x1 = tonumber(get "x1")
-    bounding.y1 = tonumber(get "y1")
+    local proj_name = get "proj"
+    local proj_lon = tonumber(get "lon")
+    local proj_lat = tonumber(get "lat")
+    proj = Proj(proj_name, {proj_lon, proj_lat}, model.r)
+    local bbox = {}
+    bbox.x0 = tonumber(get "x0")
+    bbox.y0 = tonumber(get "y0")
+    bbox.x1 = tonumber(get "x1")
+    bbox.y1 = tonumber(get "y1")
     frm:close()
-    return model, projection, bounding
-end
-
-local Frame = {}
-Frame.__index = Frame
-
-function Frame:map(lon, lat)
-    local x, y = self.prj:map(lon, lat)
-    x = (x - self.bb.x0) * self.s
-    y = self.h - (y - self.bb.y0) * self.s
-    return x, y
-end
-
-function Frame:set_height(h)
-    local mw = self.bb.x1 - self.bb.x0
-    local mh = self.bb.y1 - self.bb.y0
-    self.h = h
-    self.s = h / mh
-    self.w = math.floor(mw * self.s + 0.5)
-end
-
-function Frame:mapped(points)
-    return coroutine.wrap(function()
-        for p in points do
-            local lat, lon = unpack(p)
-            local x, y = self:map(lat, lon)
-            coroutine.yield({x, y})
-        end
-    end)
-end
-
-local function new_frame(fname)
-    local self = setmetatable({}, Frame)
-    local m, p, b = load_frame(fname)
-    self.bb = b
-    self.prj = proj.Proj(p.name, {p.lon, p.lat}, m.r)
-    return self
+    return new_frame(model, proj, bbox)
 end
 
 return {
     distance=distance, bbox=bbox, centroid=centroid, Proj=Proj,
-    save_frame=save_frame, load_frame=load_frame, new_frame=new_frame
+    new_frame=new_frame, load_frame=load_frame
 }
