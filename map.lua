@@ -201,12 +201,12 @@ function Frame:save(fname)
     local frm = io.open(fname, "w")
     local model = self.proj:model()
     frm:write("type", sep, model.type, "\n")
-    if self.model.type == "ellipsoid" then
+    if model.type == "ellipsoid" then
         frm:write("a", sep, model.a, "\n")
         frm:write("b", sep, model.b, "\n")
         frm:write("e", sep, model.e, "\n")
         frm:write("f", sep, model.f, "\n")
-    elseif self.model.type == "sphere" then
+    elseif model.type == "sphere" then
         frm:write("r", sep, model.r, "\n")
     end
     frm:write("proj", sep, self.proj.name, "\n")
