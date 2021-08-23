@@ -6,5 +6,7 @@ test_*
 *.png
 *.gif
 *.frm
+*.cache
 img/
 font/
+cache/
