@@ -199,14 +199,15 @@ end
 
 function Frame:save(fname)
     local frm = io.open(fname, "w")
-    frm:write("type", sep, self.model.type, "\n")
+    local model = self.proj:model()
+    frm:write("type", sep, model.type, "\n")
     if self.model.type == "ellipsoid" then
-        frm:write("a", sep, self.model.a, "\n")
-        frm:write("b", sep, self.model.b, "\n")
-        frm:write("e", sep, self.model.e, "\n")
-        frm:write("f", sep, self.model.f, "\n")
+        frm:write("a", sep, model.a, "\n")
+        frm:write("b", sep, model.b, "\n")
+        frm:write("e", sep, model.e, "\n")
+        frm:write("f", sep, model.f, "\n")
     elseif self.model.type == "sphere" then
-        frm:write("r", sep, self.model.r, "\n")
+        frm:write("r", sep, model.r, "\n")
     end
     frm:write("proj", sep, self.proj.name, "\n")
     frm:write("lon", sep, deg(self.proj.lon), "\n")
@@ -218,10 +219,9 @@ function Frame:save(fname)
     frm:close()
 end
 
-local function new_frame(model, proj, bbox)
+local function new_frame(proj, bbox)
     local self = setmetatable({}, Frame)
     self.proj = proj
-    self.model = model
     self.bbox = bbox
     self.w, self.h, self.s = bbox.x1-bbox.x0, bbox.y1-bbox.y0, 1
     return self
@@ -256,7 +256,7 @@ local function load_frame(fname)
     bbox.x1 = tonumber(get "x1")
     bbox.y1 = tonumber(get "y1")
     frm:close()
-    return new_frame(model, proj, bbox)
+    return new_frame(proj, bbox)
 end
 
 return {
