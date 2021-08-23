@@ -231,6 +231,8 @@ function Frame:save_cache(fname, sf, filter)
         end
     end
     local cache = io.open(fname, "w")
+    bio.write_beu16(cache, self.w)
+    bio.write_beu16(cache, self.h)
     for i = 1, #indices do
         local index, key = unpack(indices[i])
         cache:write(key, string.rep("\0", 20 - #key))
@@ -239,7 +241,7 @@ function Frame:save_cache(fname, sf, filter)
     for i = 1, #indices do
         local index, key = unpack(indices[i])
         local offset = cache:seek()
-        cache:seek("set", i * 20 - 4)
+        cache:seek("set", i * 20)
         bio.write_beu32(cache, offset)
         cache:seek("set", offset)
         local bb, lens, polys = sf:read_polygons(index)
@@ -332,7 +334,7 @@ Cache.__index = Cache
 
 function Cache:keys()
     local cache = self.fp
-    local offset = 0
+    local offset = 4
     return function()
         cache:seek("set", offset)
         offset = offset + 20
@@ -345,7 +347,7 @@ end
 
 function Cache:get_polys(key)
     local cache = self.fp
-    cache:seek("set", 0)
+    cache:seek("set", 4)
     local ckey = cache:read(16)
     local offset = -1
     while ckey:byte() ~= 0 do
@@ -377,6 +379,8 @@ end
 local function load_cache(fname)
     local self = setmetatable({}, Cache)
     self.fp = io.open(fname, "r")
+    self.w = bio.read_beu16(self.fp)
+    self.h = bio.read_beu16(self.fp)
     return self
 end
 
