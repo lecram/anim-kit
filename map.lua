@@ -181,14 +181,20 @@ function Frame:set_height(h)
     self.w = math.floor(mw * self.s + 0.5)
 end
 
-function Frame:mapped(points)
-    return coroutine.wrap(function()
-        for p in points do
-            local lat, lon = unpack(p)
-            local x, y = self:map(lat, lon)
-            coroutine.yield({x, y})
+function Frame:mapped(polys)
+    return function()
+        local points = polys()
+        if points then
+            return function()
+                local point = points()
+                if point then
+                    local lat, lon = unpack(point)
+                    local x, y = self:map(lat, lon)
+                    return {x, y}
+                end
+            end
         end
-    end)
+    end
 end
 
 function Frame:save(fname)

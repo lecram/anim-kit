@@ -17,6 +17,20 @@ local function round(x)
     return i
 end
 
+local function func_iter(seq)
+    if type(seq) == "table" then
+        local i = 0
+        return function()
+            i = i + 1
+            if i <= #seq then
+                return seq[i]
+            end
+        end
+    else
+        return seq
+    end
+end
+
 local Surf = {}
 
 function Surf:inside(x, y)
@@ -71,18 +85,20 @@ function Surf:line(x0, y0, x1, y1, v, r)
 end
 
 function Surf:polyline(points, v, r)
+    points = func_iter(points)
     local x0, y0, x1, y1
-    x0, y0 = unpack(points[1])
-    for i = 2, #points do
-        x1, y1 = unpack(points[i])
+    x0, y0 = unpack(points())
+    for point in points do
+        x1, y1 = unpack(point)
         self:line(x0, y0, x1, y1, v, r)
         x0, y0 = x1, y1
     end
 end
 
-function Surf:polylines(polys, v, r)
-    for _, lines in ipairs(polys) do
-        self:polyline(lines, v, r)
+function Surf:polylines(polylines, v, r)
+    polylines = func_iter(polylines)
+    for points in polylines do
+        self:polyline(points, v, r)
     end
 end
 
@@ -91,6 +107,7 @@ local function cross_comp(a, b)
 end
 
 function Surf:scan(points)
+    points = func_iter(points)
     if not self.scans then
         self.scans = {}
         for i = 0, self.h-1 do
@@ -100,9 +117,9 @@ function Surf:scan(points)
     local x0, y0, x1, y1
     local ax, ay, bx, by -- same line as above, but enforce ay < by
     local sign
-    x0, y0 = unpack(points[1])
-    for i = 2, #points do
-        x1, y1 = unpack(points[i])
+    x0, y0 = unpack(points())
+    for point in points do
+        x1, y1 = unpack(point)
         if y1 ~= y0 then
             if y0 < y1 then
                 ax, ay, bx, by = x0, y0, x1, y1
@@ -154,7 +171,8 @@ function Surf:polygon(points, v)
 end
 
 function Surf:polygons(polygons, v)
-    for _, points in ipairs(polygons) do
+    polygons = func_iter(polygons)
+    for points in polygons do
         self:scan(points)
     end
     self:fill_scans(v)
