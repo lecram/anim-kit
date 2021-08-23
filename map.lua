@@ -260,7 +260,7 @@ function Frame:save_cache(fname, sf, filter)
             end
             bio.write_beu32(cache, 0) -- end list of points
         end
-        bio.write_beu32(cache, 0) -- end list of polys
+        bio.write_beu32(cache, 0x80008000) -- end list of polys
     end
     cache:close()
 end
@@ -360,7 +360,7 @@ function Cache:get_polys(key)
     cache:seek("set", offset)
     return function()
         local ox, oy = bio.read_bei16(cache), bio.read_bei16(cache)
-        if ox ~= 0 or oy ~= 0 then
+        if ox ~= -0x8000 or oy ~= -0x8000 then
             local x, y = 0, 0
             return function()
                 if x ~= ox or y ~= oy then
