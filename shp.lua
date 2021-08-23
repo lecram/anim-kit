@@ -1,5 +1,6 @@
-local ffi = require "ffi"
 local bit = require "bit"
+
+local bio = require "bio"
 
 local function rtrim(s, c)
     local i = #s
@@ -9,76 +10,30 @@ local function rtrim(s, c)
     return s:sub(1, i)
 end
 
-local function read_byte(fp)
-    return fp:read(1):byte(1)
-end
-
-local function read_leu16(fp)
-    return read_byte(fp) + bit.lshift(read_byte(fp), 8)
-end
-
-local function read_leu32(fp)
-    return read_leu16(fp) + bit.lshift(read_leu16(fp), 16)
-end
-
-local function read_beu16(fp)
-    return bit.lshift(read_byte(fp), 8) + read_byte(fp)
-end
-
-local function read_beu32(fp)
-    return bit.lshift(read_beu16(fp), 16) + read_beu16(fp)
-end
-
-local function signed(u, nbits)
-    local p = 2^(nbits-1)
-    if u >= p then u = u - p - p end
-    return u
-end
-
-local function read_lei16(fp)
-    return signed(read_leu16(fp), 16)
-end
-
-local function read_lei32(fp)
-    return signed(read_leu32(fp), 32)
-end
-
-local function read_bei16(fp)
-    return signed(read_beu16(fp), 16)
-end
-
-local function read_bei32(fp)
-    return signed(read_beu32(fp), 32)
-end
-
-local function read_led64(fp)
-    return ffi.cast("double *", ffi.new("char[8]", fp:read(8)))[0]
-end
-
 local SF = {}
 SF.__index = SF
 
 function SF:read_dbf()
     local fp = io.open(self.path .. ".dbf", "rb")
-    local version = bit.band(read_byte(fp), 0x07)
+    local version = bit.band(bio.read_byte(fp), 0x07)
     if version ~= 3 then
         error("only DBF version 5 is supported")
     end
-    self.year = 1900 + read_byte(fp)
-    self.month = read_byte(fp)
-    self.day = read_byte(fp)
-    self.nrecs = read_leu32(fp)
+    self.year = 1900 + bio.read_byte(fp)
+    self.month = bio.read_byte(fp)
+    self.day = bio.read_byte(fp)
+    self.nrecs = bio.read_leu32(fp)
     fp:seek("cur", 24)
     local reclen = 0
     local fields = {}
-    local byte = read_byte(fp)
+    local byte = bio.read_byte(fp)
     while byte ~= 0x0D do
         local field_name = rtrim(string.char(byte) .. fp:read(10), "\000")
         local field_type = fp:read(1)
         fp:seek("cur", 4)
-        local field_length = read_byte(fp)
+        local field_length = bio.read_byte(fp)
         reclen = reclen + field_length
-        local field_dec_count = read_byte(fp)
+        local field_dec_count = bio.read_byte(fp)
         local field = {
           name=field_name,
           type=field_type,
@@ -87,7 +42,7 @@ function SF:read_dbf()
         }
         table.insert(fields, field)
         fp:seek("cur", 14)
-        byte = read_byte(fp)
+        byte = bio.read_byte(fp)
     end
     local tab = {}
     for i = 1, self.nrecs do
@@ -164,32 +119,32 @@ end
 
 local function read_bbox(fp)
     local bbox = {}
-    bbox.xmin = read_led64(fp)
-    bbox.ymin = read_led64(fp)
-    bbox.xmax = read_led64(fp)
-    bbox.ymax = read_led64(fp)
+    bbox.xmin = bio.read_led64(fp)
+    bbox.ymin = bio.read_led64(fp)
+    bbox.xmax = bio.read_led64(fp)
+    bbox.ymax = bio.read_led64(fp)
     return bbox
 end
 
 -- SHX and SHP share the same header structure!
 local function read_sf_header(fp)
-    local file_code = read_bei32(fp)
+    local file_code = bio.read_bei32(fp)
     if file_code ~= 9994 then
         error("does not seem to be a shapefile (invalid FileCode)")
     end
     fp:seek("cur", 20) -- unused, always all-zero
-    local file_len = read_bei32(fp)
-    local version = read_lei32(fp)
+    local file_len = bio.read_bei32(fp)
+    local version = bio.read_lei32(fp)
     if version ~= 1000 then
         error("invalid shapefile version")
     end
     local header = {}
-    header.shape = shape_name[read_lei32(fp)]
+    header.shape = shape_name[bio.read_lei32(fp)]
     header.bbox = read_bbox(fp)
-    header.zmin = read_led64(fp)
-    header.zmax = read_led64(fp)
-    header.mmin = read_led64(fp)
-    header.mmax = read_led64(fp)
+    header.zmin = bio.read_led64(fp)
+    header.zmax = bio.read_led64(fp)
+    header.mmin = bio.read_led64(fp)
+    header.mmax = bio.read_led64(fp)
     return header
 end
 
@@ -198,8 +153,8 @@ function SF:read_shx()
     self.header = read_sf_header(fp)
     self.index = {}
     for i = 1, self.nrecs do
-        local offset = read_bei32(fp)
-        local length = read_bei32(fp)
+        local offset = bio.read_bei32(fp)
+        local length = bio.read_bei32(fp)
         table.insert(self.index, {offset=offset, length=length})
     end
     io.close(fp)
@@ -208,10 +163,25 @@ end
 function SF:read_record_header(index)
     local fp = self.fp
     fp:seek("set", self.index[index].offset * 2)
-    local num = read_bei32(fp)
-    local len = read_bei32(fp)
-    local shape = shape_name[read_lei32(fp)]
+    local num = bio.read_bei32(fp)
+    local len = bio.read_bei32(fp)
+    local shape = shape_name[bio.read_lei32(fp)]
     return num, len, shape
+end
+
+function SF:read_bbox(index)
+    local shape_name = self.header.shape
+    assert(
+        startswith(shape_name, "polyline") or
+        startswith(shape_name, "polygon") or
+        startswith(shape_name, "multipoint"),
+        ("%s shape doesn't have bbox"):format(shape_name)
+    )
+    local num, len, shape = self:read_record_header(index)
+    if shape == "null" then
+        return nil
+    end
+    return read_bbox(self.fp)
 end
 
 function SF:read_polygons(index)
@@ -222,13 +192,13 @@ function SF:read_polygons(index)
         return nil
     end
     local bbox = read_bbox(fp)
-    local nparts = read_lei32(fp)
+    local nparts = bio.read_lei32(fp)
     --~ print(nparts)
-    local npoints = read_lei32(fp)
-    local total = read_lei32(fp) -- first index is always zero?
+    local npoints = bio.read_lei32(fp)
+    local total = bio.read_lei32(fp) -- first index is always zero?
     local lengths = {}
     for i = 2, nparts do
-        local index = read_lei32(fp)
+        local index = bio.read_lei32(fp)
         table.insert(lengths, index - total)
         total = index
     end
@@ -242,8 +212,8 @@ function SF:read_polygons(index)
             return function()
                 j = j + 1
                 if j <= length then
-                    local x = read_led64(fp)
-                    local y = read_led64(fp)
+                    local x = bio.read_led64(fp)
+                    local y = bio.read_led64(fp)
                     return {x, y}
                 end
             end
