@@ -539,12 +539,14 @@ function Face:string(s, pt, x, y, anchor, a)
         if i > 1 and self.num_kernings > 0 then
             cur_x = cur_x + self:get_kerning(li, ri)
         end
-        outline = self:pack_outline(self:glyph(ri))
-        for j, contour in ipairs(outline) do
-            for k, point in ipairs(contour) do
-                point[1] = point[1] + cur_x
+        if code ~= 32 then
+            outline = self:pack_outline(self:glyph(ri))
+            for j, contour in ipairs(outline) do
+                for k, point in ipairs(contour) do
+                    point[1] = point[1] + cur_x
+                end
+                table.insert(contours, contour)
             end
-            table.insert(contours, contour)
         end
         advance, bearing = self:hmetrics(ri)
         cur_x = cur_x + advance
