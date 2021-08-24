@@ -245,24 +245,22 @@ function Frame:save_cache(fname, sf, filter)
         bio.write_beu32(cache, offset)
         cache:seek("set", offset)
         local bb, lens, polys = sf:read_polygons(index)
+        bio.write_beu16(cache, #lens)
         for poly in self:mapped(polys) do
             local ox, oy = unpack(poly())
             ox, oy = math.floor(ox + 0.5), math.floor(oy + 0.5)
-            bio.write_bei16(cache, ox)
-            bio.write_bei16(cache, oy)
+            bio.write_leivlp(cache, ox, oy)
             for point in poly do
                 local x, y = unpack(point)
                 x, y = math.floor(x + 0.5), math.floor(y + 0.5)
                 local dx, dy = x-ox, y-oy
                 if dx ~= 0 or dy ~= 0 then
-                    bio.write_bei16(cache, dx)
-                    bio.write_bei16(cache, dy)
+                    bio.write_leivlp(cache, dx, dy)
                     ox, oy = x, y
                 end
             end
-            bio.write_beu32(cache, 0) -- end list of points
+            bio.write_leivlp(cache, 0, 0)
         end
-        bio.write_beu32(cache, 0x80008000) -- end list of polys
     end
     cache:close()
 end
@@ -360,14 +358,16 @@ function Cache:get_polys(key)
     end
     assert(offset > 0, ("key '%s' not found in cache '%s'"):format(key, fname))
     cache:seek("set", offset)
+    local npolys = bio.read_beu16(cache)
     return function()
-        local ox, oy = bio.read_bei16(cache), bio.read_bei16(cache)
-        if ox ~= -0x8000 or oy ~= -0x8000 then
+        if npolys > 0 then
+            npolys = npolys - 1
+            local ox, oy = bio.read_leivlp(cache)
             local x, y = 0, 0
             return function()
                 if x ~= ox or y ~= oy then
                     x, y = ox, oy
-                    local dx, dy = bio.read_bei16(cache), bio.read_bei16(cache)
+                    local dx, dy = bio.read_leivlp(cache)
                     ox, oy = ox+dx, oy+dy
                     return {x, y}
                 end
