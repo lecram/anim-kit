@@ -249,17 +249,22 @@ function Frame:save_cache(fname, sf, filter)
         for poly in self:mapped(polys) do
             local ox, oy = unpack(poly())
             ox, oy = math.floor(ox + 0.5), math.floor(oy + 0.5)
-            bio.write_leivlp(cache, ox, oy)
+            bio.write_bei16(cache, ox)
+            bio.write_bei16(cache, oy)
+            local rice = bio.rice_w(cache)
             for point in poly do
                 local x, y = unpack(point)
                 x, y = math.floor(x + 0.5), math.floor(y + 0.5)
                 local dx, dy = x-ox, y-oy
                 if dx ~= 0 or dy ~= 0 then
-                    bio.write_leivlp(cache, dx, dy)
+                    rice:put_signed(dx)
+                    rice:put_signed(dy)
                     ox, oy = x, y
                 end
             end
-            bio.write_leivlp(cache, 0, 0)
+            rice:put_signed(0)
+            rice:put_signed(0)
+            rice:flush()
         end
     end
     cache:close()
@@ -362,12 +367,13 @@ function Cache:get_polys(key)
     return function()
         if npolys > 0 then
             npolys = npolys - 1
-            local ox, oy = bio.read_leivlp(cache)
+            local ox, oy = bio.read_bei16(cache), bio.read_bei16(cache)
+            local rice = bio.rice_r(cache)
             local x, y = 0, 0
             return function()
                 if x ~= ox or y ~= oy then
                     x, y = ox, oy
-                    local dx, dy = bio.read_leivlp(cache)
+                    local dx, dy = rice:get_signed(), rice:get_signed()
                     ox, oy = ox+dx, oy+dy
                     return {x, y}
                 end
