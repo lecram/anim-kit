@@ -215,7 +215,7 @@ function Frame:near(bb)
     return math.max(unpack(ns)) < math.max(self.w, self.h)*2
 end
 
-function Frame:save_cache(fname, sf, filter)
+function Frame:save_cache(fname, k, sf, filter)
     local indices = {}
     for i = 1, #sf.tab do
         local row = sf.tab[i]
@@ -233,6 +233,7 @@ function Frame:save_cache(fname, sf, filter)
     local cache = io.open(fname, "w")
     bio.write_beu16(cache, self.w)
     bio.write_beu16(cache, self.h)
+    bio.write_byte(cache, k)
     for i = 1, #indices do
         local index, key = unpack(indices[i])
         cache:write(key, string.rep("\0", 20 - #key))
@@ -241,7 +242,7 @@ function Frame:save_cache(fname, sf, filter)
     for i = 1, #indices do
         local index, key = unpack(indices[i])
         local offset = cache:seek()
-        cache:seek("set", i * 20)
+        cache:seek("set", i * 20 + 1)
         bio.write_beu32(cache, offset)
         cache:seek("set", offset)
         local bb, lens, polys = sf:read_polygons(index)
@@ -251,7 +252,7 @@ function Frame:save_cache(fname, sf, filter)
             ox, oy = math.floor(ox + 0.5), math.floor(oy + 0.5)
             bio.write_bei16(cache, ox)
             bio.write_bei16(cache, oy)
-            local rice = bio.rice_w(cache)
+            local rice = bio.rice_w(cache, k)
             for point in poly do
                 local x, y = unpack(point)
                 x, y = math.floor(x + 0.5), math.floor(y + 0.5)
@@ -337,7 +338,7 @@ Cache.__index = Cache
 
 function Cache:keys()
     local cache = self.fp
-    local offset = 4
+    local offset = 5
     return function()
         cache:seek("set", offset)
         offset = offset + 20
@@ -350,7 +351,7 @@ end
 
 function Cache:get_polys(key)
     local cache = self.fp
-    cache:seek("set", 4)
+    cache:seek("set", 5)
     local ckey = cache:read(16)
     local offset = -1
     while ckey:byte() ~= 0 do
@@ -368,7 +369,7 @@ function Cache:get_polys(key)
         if npolys > 0 then
             npolys = npolys - 1
             local ox, oy = bio.read_bei16(cache), bio.read_bei16(cache)
-            local rice = bio.rice_r(cache)
+            local rice = bio.rice_r(cache, self.k)
             local x, y = 0, 0
             return function()
                 if x ~= ox or y ~= oy then
@@ -387,6 +388,7 @@ local function load_cache(fname)
     self.fp = io.open(fname, "r")
     self.w = bio.read_beu16(self.fp)
     self.h = bio.read_beu16(self.fp)
+    self.k = bio.read_byte(self.fp)
     return self
 end
 
