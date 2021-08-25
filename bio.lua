@@ -3,6 +3,16 @@
 local ffi = require "ffi"
 local bit = require "bit"
 
+-- ZigZag encoding to map signed to unsigned integers
+local function s2u(n)
+    return bit.bxor(bit.lshift(n, 1), bit.arshift(n, 31))
+end
+
+-- ZigZag decoding to map unsigned back to signed integers
+local function u2s(n)
+    return bit.bxor(bit.rshift(n, 1), -bit.band(n, 1))
+end
+
 local function read_byte(fp)
     return fp:read(1):byte(1)
 end
@@ -64,9 +74,7 @@ end
 
 local function read_leivlp(fp)
     local x, y = read_leuvlp(fp)
-    if bit.band(x, 1) == 1 then x = (x+1)/2 elseif x ~= 0 then x = -(x/2) end
-    if bit.band(y, 1) == 1 then y = (y+1)/2 elseif y ~= 0 then y = -(y/2) end
-    return x, y
+    return u2s(x), u2s(y)
 end
 
 local function write_beu16(fp, n)
@@ -97,9 +105,7 @@ local function write_leuvlp(fp, x, y)
 end
 
 local function write_leivlp(fp, x, y)
-    if x < 0 then x = -2*x elseif x > 0 then x = x*2-1 end
-    if y < 0 then y = -2*y elseif y > 0 then y = y*2-1 end
-    write_leuvlp(fp, x, y)
+    write_leuvlp(fp, s2u(x), s2u(y))
 end
 
 return {
