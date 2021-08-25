@@ -362,7 +362,7 @@ function Cache:get_polys(key)
         cache:seek("cur", 4)
         ckey = cache:read(16)
     end
-    assert(offset > 0, ("key '%s' not found in cache '%s'"):format(key, fname))
+    assert(offset > 0, ("key '%s' not found in cache"):format(key))
     cache:seek("set", offset)
     local npolys = bio.read_beu16(cache)
     return function()
