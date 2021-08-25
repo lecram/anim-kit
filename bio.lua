@@ -111,7 +111,7 @@ end
 local function rice_r(fp, k)
     local self = setmetatable({}, RiceR)
     self.fp = fp    -- already opened file, read mode
-    self.k = k or 1 -- rice parameter
+    self.k = k or 0 -- rice parameter
     self.b = 0      -- value of last byte read
     self.n = 0      -- number of bits available in self.b
     return self
@@ -153,7 +153,7 @@ end
 local function rice_w(fp, k)
     local self = setmetatable({}, RiceW)
     self.fp = fp    -- already opened file, write mode
-    self.k = k or 1 -- rice parameter
+    self.k = k or 0 -- rice parameter
     self.b = 0      -- value of next byte to write
     self.n = 8      -- number of bits available in self.b
     return self
