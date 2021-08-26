@@ -47,7 +47,7 @@ function SF:read_dbf()
                 local field = fields[j]
                 local cell = util.rtrim(fp:read(field.length), " ")
                 if field.type == "F" or field.type == "N" then
-                    cell = tonumber(cell)
+                    cell = tonumber(cell) or 0
                 end
                 table.insert(row, cell)
             end
