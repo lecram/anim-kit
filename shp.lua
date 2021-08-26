@@ -188,6 +188,21 @@ function SF:read_bbox(index)
     return read_bbox(self.fp)
 end
 
+function SF:get_point(index, proj)
+    assert(util.startswith(self.header.shape, "point"), "type mismatch")
+    local fp = self.fp
+    local num, len, shape = self:read_record_header(index)
+    if shape == "null" then
+        return nil
+    end
+    local x = bio.read_led64(fp)
+    local y = bio.read_led64(fp)
+    if proj ~= nil then
+        x, y = proj:map(x, y)
+    end
+    return {x, y}
+end
+
 function SF:get_polys(index, proj)
     assert(util.startswith(self.header.shape, "poly"), "type mismatch")
     local fp = self.fp
