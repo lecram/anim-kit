@@ -230,8 +230,8 @@ function Frame:mapped(polys)
             return function()
                 local point = points()
                 if point then
-                    local lat, lon = unpack(point)
-                    local x, y = self:map(lat, lon)
+                    local lon, lat = unpack(point)
+                    local x, y = self:map(lon, lat)
                     if x >= 0 and x < self.w and y >= 0 and y < self.h then
                         self.touched = true
                     end
