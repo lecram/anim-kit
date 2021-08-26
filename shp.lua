@@ -76,6 +76,20 @@ function SF:search(field_name, value)
     end
 end
 
+function SF:print_summary(n)
+    n = n or 5
+    local sep = ":"
+    for i = 1, #self.fields do
+        local field = self.fields[i]
+        local row = {field.name}
+        for j = 1, n do
+            table.insert(row, self.tab[j][i])
+        end
+        print(table.concat(row, sep))
+    end
+    print("records".. sep .. #self.tab)
+end
+
 function SF:tab2csv(sep, fp)
     -- TODO: refactor to use table.concat(str_list, sep)
     sep = sep or ":"
