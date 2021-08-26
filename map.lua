@@ -201,6 +201,7 @@ function Frame:add_margin(m)
 end
 
 function Frame:fitted(polys)
+    self.touched = false
     return function()
         local points = polys()
         if points then
@@ -209,6 +210,9 @@ function Frame:fitted(polys)
                 if point then
                     local x, y = unpack(point)
                     x, y = self:fit(x, y)
+                    if x >= 0 and x < self.w and y >= 0 and y < self.h then
+                        self.touched = true
+                    end
                     return {x, y}
                 end
             end
@@ -217,6 +221,7 @@ function Frame:fitted(polys)
 end
 
 function Frame:mapped(polys)
+    self.touched = false
     return function()
         local points = polys()
         if points then
@@ -225,6 +230,9 @@ function Frame:mapped(polys)
                 if point then
                     local lat, lon = unpack(point)
                     local x, y = self:map(lat, lon)
+                    if x >= 0 and x < self.w and y >= 0 and y < self.h then
+                        self.touched = true
+                    end
                     return {x, y}
                 end
             end
