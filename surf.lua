@@ -25,7 +25,7 @@ function Surf:vline(x, y, h, v)
     end
 end
 
-function Surf:disk(cx, cy, r, v)
+function Surf:disk_int(cx, cy, r, v)
     if r == 0 then
         self:pset(cx, cy, v)
         return
@@ -46,17 +46,21 @@ function Surf:disk(cx, cy, r, v)
     end
 end
 
+function Surf:disk(cx, cy, r, v)
+    self:disk_int(util.round(cx), util.round(cy), r, v)
+end
+
 function Surf:line(x0, y0, x1, y1, v, r)
     r = r or 0
     local dx, dy = x1-x0, y1-y0
     local n = math.max(math.abs(dx), math.abs(dy))
     local sx, sy = dx/n, dy/n
     local x, y = x0, y0
-    self:disk(math.floor(x), math.floor(y), r, v)
+    self:disk_int(math.floor(x), math.floor(y), r, v)
     for i = 1, n do
         x = x + sx
         y = y + sy
-        self:disk(math.floor(x), math.floor(y), r, v)
+        self:disk_int(math.floor(x), math.floor(y), r, v)
     end
 end
 
