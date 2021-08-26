@@ -7,10 +7,6 @@ local bnot = bit.bnot
 local bor, band = bit.bor, bit.band
 local lshift, rshift =  bit.lshift,  bit.rshift
 
-local function log(s)
-    io.stderr:write(s .. "\n")
-end
-
 local function utf8to32(utf8str)
     assert(type(utf8str) == "string")
     local res, seq, val = {}, 0, nil
@@ -59,6 +55,12 @@ end
 
 local Face = {}
 Face.__index = Face
+
+function Face:log(s)
+    if self.dbg then
+        io.stderr:write(s .. "\n")
+    end
+end
 
 function Face:str(n)    return self.fp:read(n) end
 function Face:uint8()   return uint(self.fp:read(1)) end
@@ -310,7 +312,7 @@ function Face:kern()
             end
             self.kerning = kerning
         else
-            log(("unsupported kerning table format: %d"):format(format))
+            self:log(("unsupported kerning table format: %d"):format(format))
         end
     end
 end
@@ -436,7 +438,7 @@ function Face:glyph(id)
             local scaled_offset     = band(flags, 2^0xB) > 0
             local unscaled_offset   = band(flags, 2^0xC) > 0
             if obsolete then
-                log("warning: glyph component using obsolete flag")
+                self:log("warning: glyph component using obsolete flag")
             end
             local gid = self:uint16()
             local pos = self:getpos()
@@ -452,7 +454,7 @@ function Face:glyph(id)
                     f = self:int8()
                 end
                 if round_xy_to_grid then
-                    log("warning: ignoring request to round component offset")
+                    self:log("warning: ignoring request to round component offset")
                 end
             else
                 local i, j
@@ -468,15 +470,15 @@ function Face:glyph(id)
             end
             local a, b, c, d = 1, 0, 0, 1
             if regular_scale then
-                log("regular scale")
+                self:log("regular scale")
                 a = self:int16() / 0x4000
                 d = a
             elseif irregular_scale then
-                log("irregular scale")
+                self:log("irregular scale")
                 a = self:int16() / 0x4000
                 d = self:int16() / 0x4000
             elseif two_by_two then
-                log("2x2 transformation")
+                self:log("2x2 transformation")
                 a = self:int16() / 0x4000
                 b = self:int16() / 0x4000
                 c = self:int16() / 0x4000
@@ -590,9 +592,10 @@ function Face:string(s, pt, x, y, anchor, a)
     return polygons
 end
 
-local function load_face(f)
+local function load_face(f, dbg)
     if type(f) == "string" then f = io.open(f, "rb") end
     local self = setmetatable({fp=f}, Face)
+    self.dbg = dbg or false
     self:offset()
     self:directory()
     self:head()
@@ -601,18 +604,18 @@ local function load_face(f)
     if self.dir["hhea"] then
         self:hhea()
     else
-        log("no horizontal metrics (hhea+hmtx)")
+        self:log("no horizontal metrics (hhea+hmtx)")
     end
     if self.dir["kern"] then
         self:kern()
     else
         self.num_kernings = 0
-        log("no kerning table (kern)")
+        self:log("no kerning table (kern)")
     end
     if self.dir["OS/2"] then
         self:os2()
     else
-        log("no x-height and Cap-Height (OS/2)")
+        self:log("no x-height and Cap-Height (OS/2)")
     end
     self.resolution = 300 -- dpi
     return self
