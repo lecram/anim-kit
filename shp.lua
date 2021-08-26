@@ -188,7 +188,7 @@ function SF:read_bbox(index)
     return read_bbox(self.fp)
 end
 
-function SF:read_polygons(index)
+function SF:read_polygons(index, proj)
     assert(util.startswith(self.header.shape, "polygon"), "type mismatch")
     local fp = self.fp
     local num, len, shape = self:read_record_header(index)
@@ -218,6 +218,9 @@ function SF:read_polygons(index)
                 if j <= length then
                     local x = bio.read_led64(fp)
                     local y = bio.read_led64(fp)
+                    if proj ~= nil then
+                        x, y = proj:map(x, y)
+                    end
                     return {x, y}
                 end
             end
