@@ -40,7 +40,8 @@ end
 
 local function centroid(region)
     local epsilon = 1e-10
-    local x0, y0, x1, y1 = bbox(region)
+    local bb = bbox(region)
+    local x0, y0, x1, y1 = bb.x0, bb.y0, bb.x1, bb.y1
     local lon0 = (x0 + x1) / 2
     local lat0 = (y0 + y1) / 2
     local lon1, lat1
