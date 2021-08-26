@@ -168,11 +168,15 @@ local sep = ":"
 local Frame = {}
 Frame.__index = Frame
 
-function Frame:map(lon, lat)
-    local x, y = self.proj:map(lon, lat)
+function Frame:fit(x, y)
     x = (x - self.bbox.x0) * self.s
     y = self.h - (y - self.bbox.y0) * self.s
     return x, y
+end
+
+function Frame:map(lon, lat)
+    local x, y = self.proj:map(lon, lat)
+    return self:fit(x, y)
 end
 
 function Frame:set_height(h)
@@ -181,6 +185,22 @@ function Frame:set_height(h)
     self.h = h
     self.s = h / mh
     self.w = math.floor(mw * self.s + 0.5)
+end
+
+function Frame:fitted(polys)
+    return function()
+        local points = polys()
+        if points then
+            return function()
+                local point = points()
+                if point then
+                    local x, y = unpack(point)
+                    x, y = self:fit(x, y)
+                    return {x, y}
+                end
+            end
+        end
+    end
 end
 
 function Frame:mapped(polys)
@@ -197,78 +217,6 @@ function Frame:mapped(polys)
             end
         end
     end
-end
-
-function Frame:near(bb)
-    -- not strictly correct, since projected geobbox != 2D rectangle
-    -- just used to limit cache and avoid 16-bit overflows
-    local ns = {}
-    local add_ll = function(lon, lat)
-        local x, y = self:map(lon, lat)
-        table.insert(ns, abs(x-self.w/2))
-        table.insert(ns, abs(y-self.h/2))
-    end
-    add_ll(bb.xmin, bb.ymin)
-    add_ll(bb.xmax, bb.ymin)
-    add_ll(bb.xmax, bb.ymax)
-    add_ll(bb.xmin, bb.ymax)
-    return math.max(unpack(ns)) < math.max(self.w, self.h)*2
-end
-
-function Frame:save_cache(fname, k, sf, filter)
-    local indices = {}
-    for i = 1, #sf.tab do
-        local row = sf.tab[i]
-        local rec = {}
-        for j = 1, #sf.fields do
-            rec[sf.fields[j].name] = row[j]
-        end
-        local key = filter(rec)
-        if key ~= nil then
-            if self:near(sf:read_bbox(i)) then
-                table.insert(indices, {i, key:sub(1, 16)})
-            end
-        end
-    end
-    local cache = io.open(fname, "w")
-    bio.write_beu16(cache, self.w)
-    bio.write_beu16(cache, self.h)
-    bio.write_byte(cache, k)
-    for i = 1, #indices do
-        local index, key = unpack(indices[i])
-        cache:write(key, string.rep("\0", 20 - #key))
-    end
-    cache:write(string.rep("\0", 20)) -- end list of entries
-    for i = 1, #indices do
-        local index, key = unpack(indices[i])
-        local offset = cache:seek()
-        cache:seek("set", i * 20 + 1)
-        bio.write_beu32(cache, offset)
-        cache:seek("set", offset)
-        local bb, lens, polys = sf:read_polygons(index)
-        bio.write_beu16(cache, #lens)
-        for poly in self:mapped(polys) do
-            local ox, oy = unpack(poly())
-            ox, oy = math.floor(ox + 0.5), math.floor(oy + 0.5)
-            bio.write_bei16(cache, ox)
-            bio.write_bei16(cache, oy)
-            local rice = bio.rice_w(cache, k)
-            for point in poly do
-                local x, y = unpack(point)
-                x, y = math.floor(x + 0.5), math.floor(y + 0.5)
-                local dx, dy = x-ox, y-oy
-                if dx ~= 0 or dy ~= 0 then
-                    rice:put_signed(dx)
-                    rice:put_signed(dy)
-                    ox, oy = x, y
-                end
-            end
-            rice:put_signed(0)
-            rice:put_signed(0)
-            rice:flush()
-        end
-    end
-    cache:close()
 end
 
 function Frame:save(fname)
@@ -333,66 +281,7 @@ local function load_frame(fname)
     return new_frame(proj, bbox)
 end
 
-local Cache = {}
-Cache.__index = Cache
-
-function Cache:keys()
-    local cache = self.fp
-    local offset = 5
-    return function()
-        cache:seek("set", offset)
-        offset = offset + 20
-        local ckey = cache:read(16)
-        if ckey:byte() ~= 0 then
-            return ckey:sub(1, ckey:find("\0")-1)
-        end
-    end
-end
-
-function Cache:get_polys(key)
-    local cache = self.fp
-    cache:seek("set", 5)
-    local ckey = cache:read(16)
-    local offset = -1
-    while ckey:byte() ~= 0 do
-        if ckey:sub(1, ckey:find("\0")-1) == key then
-            offset = bio.read_beu32(cache)
-            break
-        end
-        cache:seek("cur", 4)
-        ckey = cache:read(16)
-    end
-    assert(offset > 0, ("key '%s' not found in cache"):format(key))
-    cache:seek("set", offset)
-    local npolys = bio.read_beu16(cache)
-    return function()
-        if npolys > 0 then
-            npolys = npolys - 1
-            local ox, oy = bio.read_bei16(cache), bio.read_bei16(cache)
-            local rice = bio.rice_r(cache, self.k)
-            local x, y = 0, 0
-            return function()
-                if x ~= ox or y ~= oy then
-                    x, y = ox, oy
-                    local dx, dy = rice:get_signed(), rice:get_signed()
-                    ox, oy = ox+dx, oy+dy
-                    return {x, y}
-                end
-            end
-        end
-    end
-end
-
-local function load_cache(fname)
-    local self = setmetatable({}, Cache)
-    self.fp = io.open(fname, "r")
-    self.w = bio.read_beu16(self.fp)
-    self.h = bio.read_beu16(self.fp)
-    self.k = bio.read_byte(self.fp)
-    return self
-end
-
 return {
     distance=distance, bbox=bbox, centroid=centroid, Proj=Proj,
-    new_frame=new_frame, load_frame=load_frame, load_cache=load_cache
+    new_frame=new_frame, load_frame=load_frame
 }

@@ -1,6 +1,18 @@
+local ffi = require "ffi"
 local bit = require "bit"
 
 local bio = require "bio"
+
+ffi.cdef[[
+double hypot(double x, double y);
+double copysign(double x, double y);
+]]
+local copysign = ffi.C.copysign
+
+local function round(x)
+    local i, f = math.modf(x + copysign(0.5, x))
+    return i
+end
 
 local function rtrim(s, c)
     local i = #s
@@ -225,6 +237,61 @@ function SF:close()
     io.close(self.fp)
 end
 
+function SF:save_cache(fname, k, proj, scale, filter)
+    local indices = {}
+    for i = 1, #self.tab do
+        local row = self.tab[i]
+        local rec = {}
+        for j = 1, #self.fields do
+            rec[self.fields[j].name] = row[j]
+        end
+        local key = filter(rec)
+        if key ~= nil then
+            table.insert(indices, {i, key:sub(1, 16)})
+        end
+    end
+    local cache = io.open(fname, "w")
+    bio.write_beu32(cache, round(1000 / scale))
+    bio.write_byte(cache, k)
+    for i = 1, #indices do
+        local index, key = unpack(indices[i])
+        cache:write(key, string.rep("\0", 20 - #key))
+    end
+    cache:write(string.rep("\0", 20)) -- end list of entries
+    for i = 1, #indices do
+        local index, key = unpack(indices[i])
+        local offset = cache:seek()
+        cache:seek("set", i * 20 + 1)
+        bio.write_beu32(cache, offset)
+        cache:seek("set", offset)
+        local bb, lens, polys = self:read_polygons(index)
+        bio.write_beu16(cache, #lens)
+        for poly in polys do
+            local ox, oy = unpack(poly())
+            ox, oy = proj:map(ox, oy)
+            ox, oy = round(ox * scale), round(oy * scale)
+            bio.write_bei16(cache, ox)
+            bio.write_bei16(cache, oy)
+            local rice = bio.rice_w(cache, k)
+            for point in poly do
+                local x, y = unpack(point)
+                x, y = proj:map(x, y)
+                x, y = round(x * scale), round(y * scale)
+                local dx, dy = x-ox, y-oy
+                if dx ~= 0 or dy ~= 0 then
+                    rice:put_signed(dx)
+                    rice:put_signed(dy)
+                    ox, oy = x, y
+                end
+            end
+            rice:put_signed(0)
+            rice:put_signed(0)
+            rice:flush()
+        end
+    end
+    cache:close()
+end
+
 local function open_shapefile(path)
     local self = setmetatable({path=path}, SF)
     self:read_dbf()
@@ -233,4 +300,62 @@ local function open_shapefile(path)
     return self
 end
 
-return {open_shapefile=open_shapefile}
+local Cache = {}
+Cache.__index = Cache
+
+function Cache:keys()
+    local cache = self.fp
+    local offset = 5
+    return function()
+        cache:seek("set", offset)
+        offset = offset + 20
+        local ckey = cache:read(16)
+        if ckey:byte() ~= 0 then
+            return ckey:sub(1, ckey:find("\0")-1)
+        end
+    end
+end
+
+function Cache:get_polys(key)
+    local cache = self.fp
+    cache:seek("set", 5)
+    local ckey = cache:read(16)
+    local offset = -1
+    while ckey:byte() ~= 0 do
+        if ckey:sub(1, ckey:find("\0")-1) == key then
+            offset = bio.read_beu32(cache)
+            break
+        end
+        cache:seek("cur", 4)
+        ckey = cache:read(16)
+    end
+    assert(offset > 0, ("key '%s' not found in cache"):format(key))
+    cache:seek("set", offset)
+    local npolys = bio.read_beu16(cache)
+    return function()
+        if npolys > 0 then
+            npolys = npolys - 1
+            local ox, oy = bio.read_bei16(cache), bio.read_bei16(cache)
+            local rice = bio.rice_r(cache, self.k)
+            local x, y = 0, 0
+            return function()
+                if x ~= ox or y ~= oy then
+                    x, y = ox, oy
+                    local dx, dy = rice:get_signed(), rice:get_signed()
+                    ox, oy = ox+dx, oy+dy
+                    return {x * self.s, y * self.s}
+                end
+            end
+        end
+    end
+end
+
+local function load_cache(fname)
+    local self = setmetatable({}, Cache)
+    self.fp = io.open(fname, "r")
+    self.s = bio.read_beu32(self.fp) / 1000
+    self.k = bio.read_byte(self.fp)
+    return self
+end
+
+return {open_shapefile=open_shapefile, load_cache=load_cache}
