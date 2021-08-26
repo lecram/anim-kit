@@ -187,6 +187,19 @@ function Frame:set_height(h)
     self.w = math.floor(mw * self.s + 0.5)
 end
 
+function Frame:add_margin(m)
+    local f = (self.h + m) / self.h
+    self.s = self.s / f
+    local mw = self.bbox.x1 - self.bbox.x0
+    local mh = self.bbox.y1 - self.bbox.y0
+    local cx = (self.bbox.x0 + self.bbox.x1) / 2
+    local cy = (self.bbox.y0 + self.bbox.y1) / 2
+    self.bbox.x0 = cx - mw/2 * f
+    self.bbox.x1 = cx + mw/2 * f
+    self.bbox.y0 = cy - mh/2 * f
+    self.bbox.y1 = cy + mh/2 * f
+end
+
 function Frame:fitted(polys)
     return function()
         local points = polys()
