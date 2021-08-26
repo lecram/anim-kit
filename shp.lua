@@ -274,7 +274,7 @@ function SF:save_cache(fname, k, proj, scale, filter)
         cache:seek("set", i * 20 + 1)
         bio.write_beu32(cache, offset)
         cache:seek("set", offset)
-        local bb, lens, polys = self:read_polygons(index)
+        local bb, lens, polys = self:get_polys(index)
         bio.write_beu16(cache, #lens)
         for poly in polys do
             local ox, oy = unpack(poly())
