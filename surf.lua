@@ -1,21 +1,11 @@
 local ffi = require "ffi"
 local bit = require "bit"
 
-ffi.cdef[[
-double hypot(double x, double y);
-double copysign(double x, double y);
-]]
-local hypot = ffi.C.hypot
-local copysign = ffi.C.copysign
+local util = require "util"
 
 local bnot = bit.bnot
 local bor, band = bit.bor, bit.band
 local lshift, rshift =  bit.lshift,  bit.rshift
-
-local function round(x)
-    local i, f = math.modf(x + copysign(0.5, x))
-    return i
-end
 
 local function func_iter(seq)
     if type(seq) == "table" then
@@ -129,7 +119,7 @@ function Surf:scan(points)
                 sign = -1
             end
             local slope = (bx-ax) / (by-ay)
-            ay, by = round(ay), round(by)
+            ay, by = util.round(ay), util.round(by)
             while ay < by do
                 if ay >= 0 and ay < self.h then
                     table.insert(self.scans[ay], {ax, sign})

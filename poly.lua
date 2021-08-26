@@ -1,9 +1,4 @@
-local ffi = require "ffi"
-
-ffi.cdef[[
-double hypot(double x, double y);
-]]
-local hypot = ffi.C.hypot
+local util = require "util"
 
 local pi = math.pi
 local sqrt2 = math.sqrt(2)
@@ -23,7 +18,7 @@ local function dashed(points, pattern)
     j = 1
     d = pattern[j]
     while true do
-        h = hypot(x1-x0, y1-y0)
+        h = util.hypot(x1-x0, y1-y0)
         if d < h then
             cx = x0 + (x1-x0)*d/h
             cy = y0 + (y1-y0)*d/h
@@ -66,7 +61,7 @@ local function bezier(curve)
         ax, ay = unpack(a)
         bx, by = unpack(b)
         cx, cy = unpack(c)
-        h = math.abs((ax-cx)*(by-ay)-(ax-bx)*(cy-ay))/hypot(cx-ax, cy-ay)
+        h = math.abs((ax-cx)*(by-ay)-(ax-bx)*(cy-ay))/util.hypot(cx-ax, cy-ay)
         if h > 1 then -- split curve
             dx, dy = (ax+bx)/2, (ay+by)/2
             fx, fy = (bx+cx)/2, (by+cy)/2

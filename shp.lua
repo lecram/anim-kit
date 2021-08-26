@@ -1,26 +1,7 @@
-local ffi = require "ffi"
 local bit = require "bit"
 
+local util = require "util"
 local bio = require "bio"
-
-ffi.cdef[[
-double hypot(double x, double y);
-double copysign(double x, double y);
-]]
-local copysign = ffi.C.copysign
-
-local function round(x)
-    local i, f = math.modf(x + copysign(0.5, x))
-    return i
-end
-
-local function rtrim(s, c)
-    local i = #s
-    while s:sub(i, i) == c do
-        i = i - 1
-    end
-    return s:sub(1, i)
-end
 
 local SF = {}
 SF.__index = SF
@@ -40,7 +21,7 @@ function SF:read_dbf()
     local fields = {}
     local byte = bio.read_byte(fp)
     while byte ~= 0x0D do
-        local field_name = rtrim(string.char(byte) .. fp:read(10), "\000")
+        local field_name = util.rtrim(string.char(byte) .. fp:read(10), "\000")
         local field_type = fp:read(1)
         fp:seek("cur", 4)
         local field_length = bio.read_byte(fp)
@@ -64,7 +45,7 @@ function SF:read_dbf()
             local row = {}
             for j = 1, #fields do
                 local field = fields[j]
-                local cell = rtrim(fp:read(field.length), " ")
+                local cell = util.rtrim(fp:read(field.length), " ")
                 if field.type == "F" or field.type == "N" then
                     cell = tonumber(cell)
                 end
@@ -125,10 +106,6 @@ local shape_name = {
     [21] = "point-m", [23] = "polyline-m", [25] = "polygon-m", [28] = "multipoint-m",
 }
 
-local function startswith(s1, s2)
-    return s1:sub(1, #s2) == s2
-end
-
 local function read_bbox(fp)
     local bbox = {}
     bbox.xmin = bio.read_led64(fp)
@@ -184,9 +161,9 @@ end
 function SF:read_bbox(index)
     local shape_name = self.header.shape
     assert(
-        startswith(shape_name, "polyline") or
-        startswith(shape_name, "polygon") or
-        startswith(shape_name, "multipoint"),
+        util.startswith(shape_name, "polyline") or
+        util.startswith(shape_name, "polygon") or
+        util.startswith(shape_name, "multipoint"),
         ("%s shape doesn't have bbox"):format(shape_name)
     )
     local num, len, shape = self:read_record_header(index)
@@ -197,7 +174,7 @@ function SF:read_bbox(index)
 end
 
 function SF:read_polygons(index)
-    assert(startswith(self.header.shape, "polygon"), "type mismatch")
+    assert(util.startswith(self.header.shape, "polygon"), "type mismatch")
     local fp = self.fp
     local num, len, shape = self:read_record_header(index)
     if shape == "null" then
@@ -251,7 +228,7 @@ function SF:save_cache(fname, k, proj, scale, filter)
         end
     end
     local cache = io.open(fname, "w")
-    bio.write_beu32(cache, round(1000 / scale))
+    bio.write_beu32(cache, util.round(1000 / scale))
     bio.write_byte(cache, k)
     for i = 1, #indices do
         local index, key = unpack(indices[i])
@@ -269,14 +246,14 @@ function SF:save_cache(fname, k, proj, scale, filter)
         for poly in polys do
             local ox, oy = unpack(poly())
             ox, oy = proj:map(ox, oy)
-            ox, oy = round(ox * scale), round(oy * scale)
+            ox, oy = util.round(ox * scale), util.round(oy * scale)
             bio.write_bei16(cache, ox)
             bio.write_bei16(cache, oy)
             local rice = bio.rice_w(cache, k)
             for point in poly do
                 local x, y = unpack(point)
                 x, y = proj:map(x, y)
-                x, y = round(x * scale), round(y * scale)
+                x, y = util.round(x * scale), util.round(y * scale)
                 local dx, dy = x-ox, y-oy
                 if dx ~= 0 or dy ~= 0 then
                     rice:put_signed(dx)
