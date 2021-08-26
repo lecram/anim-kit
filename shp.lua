@@ -88,6 +88,7 @@ function SF:print_summary(n)
         print(table.concat(row, sep))
     end
     print("records".. sep .. #self.tab)
+    print("shape".. sep .. self.header.shape)
 end
 
 function SF:tab2csv(sep, fp)
