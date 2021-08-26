@@ -24,10 +24,10 @@ local function distance(lon1, lat1, lon2, lat2, r)
     return r * c
 end
 
-local function bbox(region)
+local function bbox(polys)
     local x0, y0, x1, y1 = huge, huge, -huge, -huge
-    for _, polygon in ipairs(region) do
-        for _, point in ipairs(polygon) do
+    for poly in polys do
+        for point in poly do
             local x, y = unpack(point)
             x0 = x < x0 and x or x0
             y0 = y < y0 and y or y0
@@ -35,7 +35,7 @@ local function bbox(region)
             y1 = y > y1 and y or y1
         end
     end
-    return x0, y0, x1, y1
+    return {x0=x0, y0=y0, x1=x1, y1=y1}
 end
 
 local function centroid(region)
