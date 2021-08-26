@@ -1,3 +1,4 @@
+local util = require "util"
 local bio = require "bio"
 
 local abs = math.abs
@@ -26,8 +27,8 @@ end
 
 local function bbox(polys)
     local x0, y0, x1, y1 = huge, huge, -huge, -huge
-    for poly in polys do
-        for point in poly do
+    for poly in util.func_iter(polys) do
+        for point in util.func_iter(poly) do
             local x, y = unpack(point)
             x0 = x < x0 and x or x0
             y0 = y < y0 and y or y0

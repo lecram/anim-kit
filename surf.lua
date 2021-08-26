@@ -7,20 +7,6 @@ local bnot = bit.bnot
 local bor, band = bit.bor, bit.band
 local lshift, rshift =  bit.lshift,  bit.rshift
 
-local function func_iter(seq)
-    if type(seq) == "table" then
-        local i = 0
-        return function()
-            i = i + 1
-            if i <= #seq then
-                return seq[i]
-            end
-        end
-    else
-        return seq
-    end
-end
-
 local Surf = {}
 
 function Surf:inside(x, y)
@@ -75,7 +61,7 @@ function Surf:line(x0, y0, x1, y1, v, r)
 end
 
 function Surf:polyline(points, v, r)
-    points = func_iter(points)
+    points = util.func_iter(points)
     local x0, y0, x1, y1
     x0, y0 = unpack(points())
     for point in points do
@@ -86,7 +72,7 @@ function Surf:polyline(points, v, r)
 end
 
 function Surf:polylines(polylines, v, r)
-    polylines = func_iter(polylines)
+    polylines = util.func_iter(polylines)
     for points in polylines do
         self:polyline(points, v, r)
     end
@@ -97,7 +83,7 @@ local function cross_comp(a, b)
 end
 
 function Surf:scan(points)
-    points = func_iter(points)
+    points = util.func_iter(points)
     if not self.scans then
         self.scans = {}
         for i = 0, self.h-1 do
@@ -161,7 +147,7 @@ function Surf:polygon(points, v)
 end
 
 function Surf:polygons(polygons, v)
-    polygons = func_iter(polygons)
+    polygons = util.func_iter(polygons)
     for points in polygons do
         self:scan(points)
     end

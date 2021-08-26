@@ -24,7 +24,22 @@ local function startswith(s1, s2)
     return s1:sub(1, #s2) == s2
 end
 
+local function func_iter(seq)
+    if type(seq) == "table" then
+        local i = 0
+        return function()
+            i = i + 1
+            if i <= #seq then
+                return seq[i]
+            end
+        end
+    else
+        return seq
+    end
+end
+
 return {
     hypot=hypot, copysign=copysign, round=round,
-    rtrim=rtrim, startswith=startswith
+    rtrim=rtrim, startswith=startswith,
+    func_iter=func_iter
 }
