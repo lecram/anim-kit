@@ -188,8 +188,8 @@ function SF:read_bbox(index)
     return read_bbox(self.fp)
 end
 
-function SF:read_polygons(index, proj)
-    assert(util.startswith(self.header.shape, "polygon"), "type mismatch")
+function SF:get_polys(index, proj)
+    assert(util.startswith(self.header.shape, "poly"), "type mismatch")
     local fp = self.fp
     local num, len, shape = self:read_record_header(index)
     if shape == "null" then
