@@ -10,7 +10,7 @@ local lshift, rshift =  bit.lshift,  bit.rshift
 local BUFout = {}
 BUFout.__index = BUFout
 
-local function new_buffer(f)
+local function new_buffer_out(f)
     local self = setmetatable({f=f, offset=0, partial=0}, BUFout)
     self.buf = ffi.new("char[255]")
     return self
@@ -63,7 +63,7 @@ local function new_trie(degree)
 end
 
 local function encode(f, d, s, x, y, w, h)
-    local buf = new_buffer(f)
+    local buf = new_buffer_out(f)
     local code_size = math.max(d, 2)
     f:write(string.char(code_size))
     local degree = 2 ^ code_size
@@ -105,13 +105,111 @@ end
 
 -- == Decoder ==
 
-local function decode(f, d, s, x, y, w, h)
-    local code_size = f:read(1):byte(1)
-    assert(code_size == math.max(d, 2), "invalid code size")
-    repeat
-        local size = f:read(1):byte(1)
-        f:seek("cur", size)
-    until size == 0
+local BUFin = {}
+BUFin.__index = BUFin
+
+local function new_buffer_in(f)
+    local self = setmetatable({}, BUFin)
+    self.f = f      -- already opened file, read mode
+    self.s = 0      -- number of bytes available in block
+    self.b = 0      -- value of last byte read
+    self.n = 0      -- number of bits available in self.b
+    return self
+end
+
+function BUFin:get_key(size)
+    local key = 0
+    for i = 1, size do
+        if self.s == 0 then
+            self.s = self.f:read(1):byte(1)
+            assert(self.s > 0, "unexpected end-of-block")
+        end
+        if self.n == 0 then
+            self.b = self.f:read(1):byte(1)
+            self.n = 8
+            self.s = self.s - 1
+        end
+        key = bor(key, lshift(band(rshift(self.b, 8-self.n), 1), i-1))
+        self.n = self.n - 1
+    end
+    return key
+end
+
+local CodeTable = {}
+CodeTable.__index = CodeTable
+
+local function new_code_table(key_size)
+    local self = setmetatable({}, CodeTable)
+    self.len = lshift(1, key_size)
+    self.tab = {}
+    for key = 0, self.len+1 do
+        self.tab[key] = {length=1, prefix=0xFFF, suffix=key}
+    end
+    self.len = self.len + 2 -- clear & stop
+    return self
+end
+
+function CodeTable:add_entry(length, prefix, suffix)
+    self.tab[self.len] = {length=length, prefix=prefix, suffix=suffix}
+    self.len = self.len + 1
+    if band(self.len, self.len-1) == 0 then
+        return 1
+    end
+    return 0
+end
+
+local function decode(f, d, s, fx, fy, w, h)
+    local key_size = f:read(1):byte(1)
+    assert(key_size == math.max(d, 2), "invalid code size")
+    local buf = new_buffer_in(f)
+    local clear = lshift(key_size, 1)
+    local stop = clear + 1
+    key_size = key_size + 1
+    local init_key_size = key_size
+    local key = buf:get_key(key_size)
+    assert(key == clear, "expected clear code, got "..key)
+    local code_table, table_is_full, entry, str_len, ret
+    local frm_off = 0 -- pixels read
+    local frm_size = w * h
+    while frm_off < frm_size do
+        if key == clear then
+            key_size = init_key_size
+            code_table = new_code_table(key_size-1)
+            table_is_full = false
+        elseif not table_is_full then
+            ret = code_table:add_entry(str_len+1, key, entry.suffix)
+            if code_table.len == 0x1000 then
+                ret = 0
+                table_is_full = true
+            end
+        end
+        key = buf:get_key(key_size)
+        if key ~= clear then
+            if key == stop or key == 0x1000 then break end
+            if ret == 1 then key_size = key_size + 1 end
+            entry = code_table.tab[key]
+            str_len = entry.length
+            for i = 1, str_len do
+                local p = frm_off + entry.length - 1
+                local x = p % w
+                local y = math.floor(p / w)
+                s:pset(fx+x, fy+y, entry.suffix)
+                if entry.prefix == 0xFFF then
+                    break
+                else
+                    entry = code_table.tab[entry.prefix]
+                end
+            end
+            frm_off = frm_off + str_len
+            if key < code_table.len-1 and not table_is_full then
+                code_table.tab[code_table.len-1].suffix = entry.suffix
+            end
+        end
+    end
+    while buf.s > 0 do
+        f:seek("cur", buf.s)
+        buf.s = f:read(1):byte(1)
+    end
 end
 
 return {encode=encode, decode=decode}

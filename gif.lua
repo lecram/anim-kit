@@ -217,9 +217,7 @@ function GIFin:get_frame()
         end
         sep = self.f:read(1)
     end
-    if self:read_image() == -1 then
-        return -1
-    end
+    self:read_image()
     return 1
 end
 
