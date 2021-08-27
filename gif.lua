@@ -1,6 +1,7 @@
 local ffi = require "ffi"
 local bit = require "bit"
 
+local bio = require "bio"
 local surf = require "surf"
 local lzw = require "lzw"
 
@@ -8,9 +9,7 @@ local bnot = bit.bnot
 local bor, band = bit.bor, bit.band
 local lshift, rshift =  bit.lshift,  bit.rshift
 
-local function write_num(f, n)
-    f:write(string.char(band(n, 0xFF), rshift(n, 8)))
-end
+local write_num = bio.write_lei16
 
 local function write_nums(f, ...)
     local nums = {...}

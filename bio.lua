@@ -73,6 +73,11 @@ local function write_beu32(fp, n)
     write_beu16(fp, bit.band(n, 0xFFFF))
 end
 
+local function write_lei16(fp, n)
+    write_byte(fp, bit.band(n, 0xFF))
+    write_byte(fp, bit.rshift(n, 8))
+end
+
 local function write_bei16(fp, n)
     if n < 0 then
         n = n + 0x10000
@@ -164,5 +169,6 @@ return {
     read_beu16=read_beu16, read_beu32=read_beu32, read_lei16=read_lei16,
     read_lei32=read_lei32, read_bei16=read_bei16, read_bei32=read_bei32,
     read_led64=read_led64, write_byte=write_byte, write_beu16=write_beu16,
-    write_beu32=write_beu32, write_bei16=write_bei16, rice_r=rice_r, rice_w=rice_w
+    write_beu32=write_beu32, write_lei16=write_lei16, write_bei16=write_bei16,
+    rice_r=rice_r, rice_w=rice_w
 }
