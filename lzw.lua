@@ -5,6 +5,8 @@ local bnot = bit.bnot
 local bor, band = bit.bor, bit.band
 local lshift, rshift =  bit.lshift,  bit.rshift
 
+-- == Encoder ==
+
 local BUFout = {}
 BUFout.__index = BUFout
 
@@ -101,4 +103,15 @@ local function encode(f, d, s, x, y, w, h)
     buf:end_key()
 end
 
-return {encode=encode}
+-- == Decoder ==
+
+local function decode(f, d, s, x, y, w, h)
+    local code_size = f:read(1):byte(1)
+    assert(code_size == math.max(d, 2), "invalid code size")
+    repeat
+        local size = f:read(1):byte(1)
+        f:seek("cur", size)
+    until size == 0
+end
+
+return {encode=encode, decode=decode}

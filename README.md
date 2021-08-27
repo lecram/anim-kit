@@ -109,7 +109,7 @@ surf:save_ppm("surf-aa.ppm", palette)
 ## Exporting to GIF (`anim.gif`)
 
 ```lua
-gif = anim.gif.new_gifout(f, w, h, colors)  -- f is the file name
+gif = anim.gif.new_gif(f, w, h, colors)     -- f is the file name
 gif:add_frame(surf1, delay)      -- delay is in hundreths of a second
 gif:add_frame(surf2, delay)
 gif:add_frame(surf3, delay)
