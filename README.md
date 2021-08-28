@@ -1,5 +1,5 @@
 # anim-kit
-A bunch of LuaJIT modules that I use to create animated diagrams.
+A bunch of LuaJIT modules that I use to create animated diagrams and maps.
 
 ## Surfaces (`anim.surf`)
 
@@ -30,7 +30,7 @@ local colors = {
     {0x00, 0x00, 0x00}, -- black
     {0x00, 0xFF, 0x00}, -- green
 }
-bytemap:save_ppm("bytemap.pbm", colors)
+bytemap:save_ppm("bytemap.ppm", colors)
 ```
 
 ### Surface Methods
@@ -106,7 +106,21 @@ surf = anim.aa.antialias(surf, #colors)
 surf:save_ppm("surf-aa.ppm", palette)
 ```
 
-## Exporting to GIF (`anim.gif`)
+## Reading and Writing GIF files (`anim.gif`)
+
+Reading frames from a GIF:
+
+```lua
+gif = anim.gif.open_gif("dia.gif")
+i = 0
+for frame in gif:frames() do    -- frame is a Surf object
+    i = i + 1
+    frame:save_ppm(("frame-%03d.ppm"):format(i), gif.gct)
+end
+print("saved "..i.." frame(s)")
+```
+
+Creating a GIF animation:
 
 ```lua
 gif = anim.gif.new_gif(f, w, h, colors)     -- f is the file name
