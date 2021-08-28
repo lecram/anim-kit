@@ -98,12 +98,18 @@ polygons = font:string(s, pt, x, y, anchor, a)
 This module performs anti aliasing by downsampling the surface in half.
 Each group of 2x2 pixels is converted into one by mixing the four colors.
 Some combinatorics is used to add mixed colors to a palette.
+A palette with N colors will be converted into one with M colors.
+```
+M = C(N+3, 4) = (N+3)! / 4! / (N-1)!
+M = N * (N+1) * (N+2) * (N+3) / 24
+```
+Note that only images with 7 or less colors can be anti-aliased.
 
 ```lua
 surf:save_ppm("surf-2x.ppm", colors)
-palette = anim.aa.get_mixed_colors(colors)
 surf = anim.aa.antialias(surf, #colors)
-surf:save_ppm("surf-aa.ppm", palette)
+colors = anim.aa.get_mixed_colors(colors)
+surf:save_ppm("surf-aa.ppm", colors)
 ```
 
 ## Reading and Writing GIF files (`anim.gif`)
