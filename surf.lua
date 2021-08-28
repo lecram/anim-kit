@@ -166,6 +166,19 @@ function Surf:blit(x, y, surf, sx, sy, w, h)
     end
 end
 
+function Surf:compose(layers)
+    for y = 0, self.h-1 do
+        for x = 0, self.w-1 do
+            for _, layer in ipairs(layers) do
+                local p = layer.map[layer.surf:pget(x, y)+1]
+                if p >= 0 then
+                    self:pset(x, y, p)
+                end
+            end
+        end
+    end
+end
+
 local BitMap = {}
 
 function BitMap:fill(v)
