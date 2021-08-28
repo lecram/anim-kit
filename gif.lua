@@ -209,16 +209,20 @@ function GIFin:get_frame()
     local sep = self.f:read(1)
     while sep ~= "," do
         if sep == ";" then
-            return 0
+            return nil
         elseif sep == "!" then
             self:read_ext()
         else
-            return -1
+            return nil
         end
         sep = self.f:read(1)
     end
     self:read_image()
-    return 1
+    return self.surf
+end
+
+function GIFin:frames()
+    return function() return self:get_frame() end
 end
 
 function GIFin:close()
