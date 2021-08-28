@@ -268,6 +268,12 @@ function SF:save_cache(fname, k, proj, scale, filter)
         cache:write(key, string.rep("\0", 20 - #key))
     end
     cache:write(string.rep("\0", 20)) -- end list of entries
+    local function geo2grid(p)
+        local x, y = unpack(p)
+        x, y = proj:map(x, y)
+        x, y = util.round(x * scale), util.round(y * scale)
+        return x, y
+    end
     for i = 1, #indices do
         local index, key = unpack(indices[i])
         local offset = cache:seek()
@@ -277,22 +283,20 @@ function SF:save_cache(fname, k, proj, scale, filter)
         local bb, lens, polys = self:get_polys(index)
         bio.write_beu16(cache, #lens)
         for poly in polys do
-            local ox, oy = unpack(poly())
-            ox, oy = proj:map(ox, oy)
-            ox, oy = util.round(ox * scale), util.round(oy * scale)
-            bio.write_bei16(cache, ox)
-            bio.write_bei16(cache, oy)
+            local px, py = geo2grid(poly())
+            bio.write_bei16(cache, px)
+            bio.write_bei16(cache, py)
+            local qx, qy = geo2grid(poly())
             local rice = bio.rice_w(cache, k)
             for point in poly do
-                local x, y = unpack(point)
-                x, y = proj:map(x, y)
-                x, y = util.round(x * scale), util.round(y * scale)
-                local dx, dy = x-ox, y-oy
-                if dx ~= 0 or dy ~= 0 then
+                local rx, ry = geo2grid(point)
+                if (px-rx)*(qy-py) - (px-qx)*(ry-py) ~= 0 then
+                    local dx, dy = qx-px, qy-py
                     rice:put_signed(dx)
                     rice:put_signed(dy)
-                    ox, oy = x, y
+                    px, py = qx, qy
                 end
+                qx, qy = rx, ry
             end
             rice:put_signed(0)
             rice:put_signed(0)
